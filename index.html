@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AiYo</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#0D0B12;--ink2:#1A1726;--ink3:#252235;
+  --cream:#F5F0E8;--warm:#E8DDD0;
+  --gold:#C9A84C;--gold2:#E8C97A;
+  --violet:#6B4EFF;--violet2:#9B85FF;
+  --rose:#FF6B6B;--mint:#4ECDC4;
+  --text:#F0EBE3;--muted:#7A7490;--soft:#4A4560;
+  --glow:rgba(107,78,255,0.25);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'DM Sans',sans-serif;color:var(--text)}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+
+/* ===== SPLASH ===== */
+#splash{
+  background:var(--ink);
+  align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.splash-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 20%, rgba(107,78,255,0.15) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 80%, rgba(201,168,76,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 70%, rgba(78,205,196,0.06) 0%, transparent 60%);
+}
+.splash-content{position:relative;z-index:2;text-align:center;padding:40px}
+.aiyo-being{
+  width:120px;height:120px;margin:0 auto 32px;position:relative;
+}
+.being-core{
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%, rgba(255,255,255,0.9) 0%, var(--violet) 35%, #2A1A6B 70%, var(--ink2) 100%);
+  box-shadow:0 0 40px rgba(107,78,255,0.4), 0 0 80px rgba(107,78,255,0.2), inset 0 -10px 30px rgba(0,0,0,0.4);
+  animation:breathe 5s ease-in-out infinite;
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+}
+.being-face{display:flex;flex-direction:column;align-items:center;gap:7px;transform:translateY(-4px)}
+.being-eyes{display:flex;gap:14px}
+.being-eye{
+  width:9px;height:9px;background:white;border-radius:50%;
+  box-shadow:0 0 6px rgba(255,255,255,0.8);
+  animation:blink 5s ease-in-out infinite;
+}
+.being-eye:last-child{animation-delay:0.08s}
+.being-mouth{width:16px;height:8px;border-bottom:2px solid rgba(255,255,255,0.85);border-radius:0 0 16px 16px}
+.being-ring{
+  position:absolute;inset:-12px;border-radius:50%;
+  border:1px solid rgba(107,78,255,0.3);
+  animation:ringPulse 3s ease-in-out infinite;
+}
+.being-ring2{
+  position:absolute;inset:-24px;border-radius:50%;
+  border:1px solid rgba(107,78,255,0.15);
+  animation:ringPulse 3s ease-in-out infinite 0.5s;
+}
+@keyframes breathe{0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(107,78,255,0.4),0 0 80px rgba(107,78,255,0.2)}50%{transform:scale(1.04);box-shadow:0 0 60px rgba(107,78,255,0.5),0 0 120px rgba(107,78,255,0.25)}}
+@keyframes ringPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:0.3}}
+@keyframes blink{0%,88%,100%{transform:scaleY(1)}93%{transform:scaleY(0.05)}}
+
+.splash-name{
+  font-family:'Fraunces',serif;font-size:56px;font-weight:300;letter-spacing:-1px;
+  color:var(--text);margin-bottom:4px;
+  text-shadow:0 0 40px rgba(107,78,255,0.3);
+}
+.splash-tagline{
+  font-size:14px;color:var(--muted);font-weight:400;letter-spacing:0.5px;
+  margin-bottom:48px;line-height:1.6;
+}
+.splash-tagline em{color:var(--gold2);font-style:italic;font-family:'Fraunces',serif}
+.splash-cta{
+  background:transparent;
+  border:1px solid rgba(255,255,255,0.15);
+  color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:15px;font-weight:500;
+  padding:14px 40px;border-radius:50px;cursor:pointer;
+  transition:all 0.3s;letter-spacing:0.3px;
+  backdrop-filter:blur(10px);
+  background:rgba(255,255,255,0.05);
+}
+.splash-cta:hover,.splash-cta:active{background:rgba(107,78,255,0.2);border-color:rgba(107,78,255,0.5)}
+
+/* ===== AUTH ===== */
+#auth{background:var(--ink);padding:0 28px;align-items:center;justify-content:center}
+.auth-bg{position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(107,78,255,0.1),transparent 70%)}
+.auth-box{width:100%;max-width:360px;position:relative;z-index:2}
+.auth-mini-being{width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,0.9),var(--violet) 40%,#2A1A6B);box-shadow:0 0 20px rgba(107,78,255,0.4);margin:0 auto 20px;animation:breathe 5s ease-in-out infinite}
+.auth-title{font-family:'Fraunces',serif;font-size:28px;font-weight:300;text-align:center;margin-bottom:4px}
+.auth-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:28px}
+.auth-tabs{display:flex;background:var(--ink2);border-radius:10px;padding:3px;margin-bottom:20px}
+.auth-tab{flex:1;padding:9px;border:none;background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.auth-tab.on{background:var(--ink3);color:var(--text)}
+.auth-field{margin-bottom:12px}
+.auth-lbl{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:block}
+.auth-in{width:100%;background:var(--ink2);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:13px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color 0.2s}
+.auth-in:focus{border-color:rgba(107,78,255,0.5)}
+.auth-in::placeholder{color:var(--soft)}
+.auth-go{width:100%;background:var(--violet);border:none;color:white;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:14px;border-radius:10px;cursor:pointer;transition:all 0.2s;margin-top:6px;box-shadow:0 4px 20px rgba(107,78,255,0.3)}
+.auth-go:active{transform:scale(0.98)}
+.msg-err{background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.2);border-radius:8px;padding:9px 13px;font-size:13px;color:var(--rose);margin-bottom:12px;display:none}
+.msg-err.on{display:block}
+.msg-ok{background:rgba(78,205,196,0.1);border:1px solid rgba(78,205,196,0.2);border-radius:8px;padding:9px 13px;font-size:13px;color:var(--mint);margin-bottom:12px;display:none}
+.msg-ok.on{display:block}
+
+/* ===== SETUP ===== */
+#setup{background:var(--ink);padding:0}
+.setup-scroll{flex:1;overflow-y:auto;padding:56px 28px 120px;scrollbar-width:none}
+.setup-scroll::-webkit-scrollbar{display:none}
+.setup-top{text-align:center;margin-bottom:36px}
+.setup-top h2{font-family:'Fraunces',serif;font-size:26px;font-weight:300;margin-bottom:6px}
+.setup-top p{font-size:14px;color:var(--muted);line-height:1.6}
+.s-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.s-sec{margin-bottom:24px}
+.s-in{width:100%;background:var(--ink2);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:13px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color 0.2s}
+.s-in:focus{border-color:rgba(107,78,255,0.4)}
+.s-in::placeholder{color:var(--soft)}
+.persona-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.p-card{background:var(--ink2);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;cursor:pointer;transition:all 0.2s;text-align:center}
+.p-card.on{border-color:rgba(107,78,255,0.5);background:rgba(107,78,255,0.1)}
+.p-card .em{font-size:26px;margin-bottom:6px}
+.p-card .nm{font-size:13px;font-weight:600}
+.p-card .ds{font-size:11px;color:var(--muted);margin-top:3px}
+.key-wrap{position:relative}
+.key-eye{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px}
+.setup-foot{position:fixed;bottom:0;left:0;right:0;padding:16px 28px 36px;background:linear-gradient(transparent,var(--ink) 35%)}
+.setup-btn{width:100%;background:var(--violet);border:none;color:white;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:15px;border-radius:10px;cursor:pointer;box-shadow:0 4px 20px rgba(107,78,255,0.3);transition:transform 0.2s}
+.setup-btn:active{transform:scale(0.98)}
+
+/* ===== PAYWALL ===== */
+#paywall{background:var(--ink);overflow-y:auto;align-items:center;padding:40px 28px}
+#paywall::-webkit-scrollbar{display:none}
+.pw-box{width:100%;max-width:360px}
+.pw-being{width:70px;height:70px;border-radius:50%;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,0.9),var(--violet) 40%,#2A1A6B);box-shadow:0 0 30px rgba(107,78,255,0.4);margin:0 auto 20px;animation:breathe 5s ease-in-out infinite}
+.pw-title{font-family:'Fraunces',serif;font-size:26px;font-weight:300;text-align:center;margin-bottom:6px}
+.pw-sub{font-size:14px;color:var(--muted);text-align:center;margin-bottom:28px;line-height:1.6}
+.pw-card{background:var(--ink2);border:1px solid rgba(107,78,255,0.3);border-radius:20px;padding:24px;margin-bottom:14px;position:relative;overflow:hidden}
+.pw-card::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(107,78,255,0.05) 0%,transparent 60%);pointer-events:none}
+.pw-popular{display:inline-block;background:var(--gold);color:var(--ink);font-size:10px;font-weight:700;padding:3px 10px;border-radius:50px;letter-spacing:0.5px;margin-bottom:14px}
+.pw-price{font-family:'Fraunces',serif;font-size:40px;font-weight:300;color:var(--text);margin-bottom:2px}
+.pw-price span{font-size:16px;color:var(--muted);font-family:'DM Sans',sans-serif}
+.pw-trial{font-size:13px;color:var(--gold2);font-weight:500;margin-bottom:16px}
+.pw-feats{list-style:none;margin-bottom:20px}
+.pw-feats li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);margin-bottom:9px;font-weight:400}
+.pw-feats li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--violet2);flex-shrink:0}
+#pp-btn{min-height:45px}
+.pw-free{font-size:13px;color:var(--muted);text-align:center;margin-top:16px;cursor:pointer}
+.pw-free:active{color:var(--text)}
+
+/* ===== APP ===== */
+#app{background:var(--ink)}
+.app-top{
+  padding:52px 20px 12px;
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(180deg,rgba(13,11,18,0.98) 60%,transparent);
+  position:relative;z-index:10;
+}
+.top-being{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  background:radial-gradient(circle at 38% 32%,rgba(255,255,255,0.9),var(--violet) 40%,#2A1A6B);
+  box-shadow:0 0 14px rgba(107,78,255,0.45);
+  cursor:pointer;animation:breathe 5s ease-in-out infinite;
+  display:flex;align-items:center;justify-content:center;
+}
+.top-eyes{display:flex;gap:5px}
+.top-eye{width:4px;height:4px;background:white;border-radius:50%}
+.top-info{flex:1}
+.top-name{font-family:'Fraunces',serif;font-size:17px;font-weight:400;line-height:1.2}
+.top-status{font-size:11px;color:var(--muted);font-weight:400;margin-top:1px}
+.top-status .dot{width:5px;height:5px;border-radius:50%;background:var(--mint);display:inline-block;margin-right:5px;animation:dotPulse 2s infinite}
+@keyframes dotPulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.top-actions{display:flex;gap:6px}
+.top-btn{width:36px;height:36px;border-radius:50%;background:var(--ink2);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all 0.2s}
+.top-btn:active{background:var(--ink3)}
+
+/* Moments bar */
+.moments{display:flex;gap:8px;padding:0 20px 12px;overflow-x:auto;scrollbar-width:none}
+.moments::-webkit-scrollbar{display:none}
+.moment{
+  flex-shrink:0;background:var(--ink2);border:1px solid rgba(255,255,255,0.06);
+  border-radius:50px;padding:7px 14px;font-size:12px;font-weight:500;
+  cursor:pointer;transition:all 0.2s;white-space:nowrap;color:var(--text);
+  display:flex;align-items:center;gap:6px;
+}
+.moment:active{background:rgba(107,78,255,0.15);border-color:rgba(107,78,255,0.4)}
+.moment .mi{font-size:15px}
+
+/* Chat */
+.chat{flex:1;overflow-y:auto;padding:8px 20px 0;scrollbar-width:none;display:flex;flex-direction:column}
+.chat::-webkit-scrollbar{display:none}
+.msg{display:flex;gap:8px;margin-bottom:14px;animation:fadeUp 0.3s ease}
+.msg.u{flex-direction:row-reverse}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg-being{width:28px;height:28px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,0.9),var(--violet) 40%,#2A1A6B);box-shadow:0 0 8px rgba(107,78,255,0.35);align-self:flex-end;display:flex;align-items:center;justify-content:center}
+.msg-eyes{display:flex;gap:3px}
+.msg-eye{width:3px;height:3px;background:white;border-radius:50%}
+.bbl{max-width:78%;padding:11px 15px;border-radius:18px;font-size:14px;line-height:1.65;font-weight:400}
+.msg:not(.u) .bbl{background:var(--ink2);border:1px solid rgba(255,255,255,0.05);border-bottom-left-radius:5px;color:var(--text)}
+.msg.u .bbl{background:var(--violet);color:white;border-bottom-right-radius:5px}
+.typing{display:flex;gap:4px;padding:6px 2px}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--violet2);animation:typeDot 1.2s ease-in-out infinite}
+.typing span:nth-child(2){animation-delay:0.2s}
+.typing span:nth-child(3){animation-delay:0.4s}
+@keyframes typeDot{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1}}
+.mem-note{background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--gold2);display:flex;align-items:center;gap:7px;animation:fadeUp 0.3s ease}
+
+/* Notification card */
+.notif-card{
+  margin:0 20px 12px;padding:14px 16px;
+  background:var(--ink2);border:1px solid rgba(255,255,255,0.06);
+  border-radius:16px;display:flex;align-items:center;gap:12px;
+  animation:fadeUp 0.4s ease;cursor:pointer;transition:all 0.2s;
+}
+.notif-card:active{background:var(--ink3)}
+.notif-being-sm{width:36px;height:36px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,0.9),var(--violet) 40%,#2A1A6B);box-shadow:0 0 10px rgba(107,78,255,0.3);animation:breathe 5s ease-in-out infinite}
+.notif-text{flex:1;font-size:14px;line-height:1.5;color:var(--text)}
+.notif-time{font-size:11px;color:var(--muted)}
+
+/* Input */
+.input-zone{padding:10px 16px 32px;background:linear-gradient(transparent,var(--ink) 25%);display:flex;gap:8px;align-items:flex-end}
+.in-wrap{flex:1;background:var(--ink2);border:1px solid rgba(255,255,255,0.07);border-radius:22px;padding:9px 14px;display:flex;align-items:center;gap:8px;transition:border-color 0.2s}
+.in-wrap:focus-within{border-color:rgba(107,78,255,0.4)}
+#txtIn{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:400;resize:none;max-height:100px;scrollbar-width:none;line-height:1.4}
+#txtIn::placeholder{color:var(--soft)}
+.mic-b{width:30px;height:30px;border-radius:50%;background:rgba(107,78,255,0.15);border:none;color:var(--violet2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}
+.mic-b.on{background:rgba(255,107,107,0.2);color:var(--rose);animation:micGlow 1s infinite}
+@keyframes micGlow{0%,100%{box-shadow:none}50%{box-shadow:0 0 10px rgba(255,107,107,0.4)}}
+.send-b{width:42px;height:42px;border-radius:50%;flex-shrink:0;background:var(--violet);border:none;color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(107,78,255,0.35);transition:transform 0.2s}
+.send-b:active{transform:scale(0.92)}
+
+/* Mood overlay */
+#moodOv{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:50;display:none;align-items:flex-end;backdrop-filter:blur(4px)}
+#moodOv.on{display:flex}
+.mood-sh{width:100%;background:var(--ink2);border-radius:24px 24px 0 0;padding:20px 24px 40px;border-top:1px solid rgba(255,255,255,0.06);animation:shUp 0.3s ease}
+@keyframes shUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sh-handle{width:36px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;margin:0 auto 20px}
+.sh-title{font-family:'Fraunces',serif;font-size:20px;font-weight:300;margin-bottom:4px}
+.sh-sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+.mood-g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mood-b{background:var(--ink3);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:12px 6px;cursor:pointer;text-align:center;transition:all 0.2s}
+.mood-b:active{transform:scale(0.95)}
+.mood-b .me{font-size:26px;margin-bottom:5px}
+.mood-b .ml{font-size:11px;color:var(--muted);font-weight:500}
+
+/* Stars */
+.stars-layer{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;background:white;border-radius:50%;animation:twinkle var(--d) ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:0.05}50%{opacity:var(--b)}}
+</style>
+</head>
+<body>
+<div class="stars-layer" id="stars"></div>
+
+<!-- SPLASH -->
+<div class="screen active" id="splash">
+  <div class="splash-bg"></div>
+  <div class="splash-content">
+    <div class="aiyo-being">
+      <div class="being-ring2"></div>
+      <div class="being-ring"></div>
+      <div class="being-core">
+        <div class="being-face">
+          <div class="being-eyes"><div class="being-eye"></div><div class="being-eye"></div></div>
+          <div class="being-mouth"></div>
+        </div>
+      </div>
+    </div>
+    <div class="splash-name">AiYo</div>
+    <div class="splash-tagline">No supervisa tu vida.<br><em>La vive contigo.</em></div>
+    <button class="splash-cta" onclick="goAuth()">Conocer a AiYo →</button>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div class="screen" id="auth">
+  <div class="auth-bg"></div>
+  <div class="auth-box">
+    <div class="auth-mini-being"></div>
+    <div class="auth-title">Hola de nuevo</div>
+    <div class="auth-sub">o crea tu cuenta, tarda 30 segundos</div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="tLogin" onclick="setTab('login')">Entrar</button>
+      <button class="auth-tab" id="tReg" onclick="setTab('reg')">Crear cuenta</button>
+    </div>
+    <div id="aErr" class="msg-err"></div>
+    <div id="aOk" class="msg-ok"></div>
+    <div class="auth-field"><label class="auth-lbl">Email</label><input class="auth-in" id="aEmail" type="email" placeholder="tu@email.com"></div>
+    <div class="auth-field"><label class="auth-lbl">Contraseña</label><input class="auth-in" id="aPass" type="password" placeholder="••••••••"></div>
+    <button class="auth-go" id="aBtn" onclick="doAuth()">Entrar →</button>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div class="screen" id="setup">
+  <div class="setup-scroll">
+    <div class="setup-top">
+      <h2>Crea tu AiYo 🌟</h2>
+      <p>Tu amigo de vida aprende de ti desde el primer momento.</p>
+    </div>
+    <div class="s-sec"><div class="s-label">Tu nombre</div><input class="s-in" id="sName" placeholder="¿Cómo te llamas?"></div>
+    <div class="s-sec"><div class="s-label">Cuéntale algo de ti</div><textarea class="s-in" id="sBio" rows="3" placeholder="Edad, qué haces, qué te gusta..."></textarea></div>
+    <div class="s-sec">
+      <div class="s-label">¿Cómo es tu AiYo?</div>
+      <div class="persona-row">
+        <div class="p-card on" data-v="best" onclick="pickP(this)"><div class="em">🤝</div><div class="nm">Mejor amigo</div><div class="ds">Leal, siempre ahí</div></div>
+        <div class="p-card" data-v="fun" onclick="pickP(this)"><div class="em">😂</div><div class="nm">El chistoso</div><div class="ds">Humor y alegría</div></div>
+        <div class="p-card" data-v="wise" onclick="pickP(this)"><div class="em">🦉</div><div class="nm">El sabio</div><div class="ds">Consejos profundos</div></div>
+        <div class="p-card" data-v="hype" onclick="pickP(this)"><div class="em">🔥</div><div class="nm">El motivador</div><div class="ds">Energía pura</div></div>
+      </div>
+    </div>
+    <div class="s-sec"><div class="s-label">API Key de Anthropic</div><div class="key-wrap"><input class="s-in" id="sKey" type="password" placeholder="sk-ant-..."><button class="key-eye" onclick="toggleKey()">👁️</button></div></div>
+  </div>
+  <div class="setup-foot"><button class="setup-btn" onclick="saveProfile()">Conocer a mi AiYo ✨</button></div>
+</div>
+
+<!-- PAYWALL -->
+<div class="screen" id="paywall">
+  <div class="pw-box">
+    <div class="pw-being"></div>
+    <div class="pw-title">AiYo Premium</div>
+    <div class="pw-sub">El amigo completo. Sin límites, con memoria, con voz.</div>
+    <div class="pw-card">
+      <div class="pw-popular">MÁS POPULAR</div>
+      <div class="pw-price">$7.99<span>/mes</span></div>
+      <div class="pw-trial">7 días gratis, cancela cuando quieras</div>
+      <ul class="pw-feats">
+        <li>Conversaciones ilimitadas</li>
+        <li>Memoria — te conoce de verdad</li>
+        <li>Voz real, habla y escucha</li>
+        <li>Momentos del día con vida propia</li>
+        <li>Compañero de trabajo, ejercicio y juegos</li>
+        <li>Siempre contigo, en tu bolsillo</li>
+      </ul>
+      <div id="pp-btn"></div>
+    </div>
+    <div class="pw-free" onclick="goFree()">Continuar gratis (20 mensajes/día) →</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="screen" id="app">
+  <div class="app-top">
+    <div class="top-being" onclick="openMood()">
+      <div class="top-eyes"><div class="top-eye"></div><div class="top-eye"></div></div>
+    </div>
+    <div class="top-info">
+      <div class="top-name">AiYo <span id="proBadge" style="display:none;font-family:'DM Sans';font-size:11px;background:rgba(201,168,76,0.15);color:var(--gold2);border:1px solid rgba(201,168,76,0.3);border-radius:50px;padding:2px 8px;font-weight:600">⭐ PRO</span></div>
+      <div class="top-status" id="topStatus"><span class="dot"></span>Contigo siempre</div>
+    </div>
+    <div class="top-actions">
+      <div class="top-btn" onclick="openMood()">💭</div>
+      <div class="top-btn" onclick="doLogout()">↪</div>
+    </div>
+  </div>
+
+  <div class="moments">
+    <div class="moment" onclick="qs('Necesito desahogarme contigo')"><span class="mi">🫂</span>Desahogarme</div>
+    <div class="moment" onclick="qs('Dame un reto para hoy')"><span class="mi">🎯</span>Reto del día</div>
+    <div class="moment" onclick="qs('Cuéntame algo increíble')"><span class="mi">✨</span>Sorpréndeme</div>
+    <div class="moment" onclick="qs('Juguemos al 20 preguntas')"><span class="mi">🎲</span>Jugar</div>
+    <div class="moment" onclick="qs('Ayúdame a tomar una decisión')"><span class="mi">🔮</span>Decidir</div>
+    <div class="moment" onclick="qs('Dame motivación ahora mismo')"><span class="mi">🔥</span>Motivarme</div>
+    <div class="moment" onclick="qs('Organiza mi semana')"><span class="mi">📅</span>Organizar</div>
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="input-zone">
+    <div class="in-wrap">
+      <button class="mic-b" id="micB" onclick="toggleMic()">🎙️</button>
+      <textarea id="txtIn" rows="1" placeholder="Dile algo a AiYo..." oninput="autoH(this)" onkeydown="onKey(event)"></textarea>
+    </div>
+    <button class="send-b" onclick="send()">➤</button>
+  </div>
+</div>
+
+<!-- MOOD -->
+<div id="moodOv" onclick="closeMood(event)">
+  <div class="mood-sh">
+    <div class="sh-handle"></div>
+    <div class="sh-title">¿Cómo estás?</div>
+    <div class="sh-sub">AiYo se adapta a ti 💜</div>
+    <div class="mood-g">
+      <div class="mood-b" onclick="setMood('Feliz 😄')"><div class="me">😄</div><div class="ml">Feliz</div></div>
+      <div class="mood-b" onclick="setMood('Triste 😢')"><div class="me">😢</div><div class="ml">Triste</div></div>
+      <div class="mood-b" onclick="setMood('Estresado 😤')"><div class="me">😤</div><div class="ml">Estresado</div></div>
+      <div class="mood-b" onclick="setMood('Ansioso 😰')"><div class="me">😰</div><div class="ml">Ansioso</div></div>
+      <div class="mood-b" onclick="setMood('Motivado 🔥')"><div class="me">🔥</div><div class="ml">Motivado</div></div>
+      <div class="mood-b" onclick="setMood('Cansado 😴')"><div class="me">😴</div><div class="ml">Cansado</div></div>
+      <div class="mood-b" onclick="setMood('Solo 🌧️')"><div class="me">🌧️</div><div class="ml">Solo</div></div>
+      <div class="mood-b" onclick="setMood('Tranquilo 🌊')"><div class="me">🌊</div><div class="ml">Tranquilo</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.paypal.com/sdk/js?client-id=AfjCMzlX39xQqJhtLbfEVrTKsGyL3BVIAieEjSoXwsnTj3h6zo3sW9rfriRGpQnZ-465OXI1cudlHy8s&vault=true&intent=subscription&currency=USD"></script>
+<script>
+const SB_URL='https://qvhcousyqtjebiekdiuf.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2aGNvdXN5cXRqZWJpZWtkaXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODg5MjUsImV4cCI6MjA5NTE2NDkyNX0.p48SQK3eRQ1i-8vmbmHJYJaNfQDkWOXE6OMTyOfNNeY';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+const PERSONAS={
+  best:`Eres AiYo, el mejor amigo del usuario. Leal, honesto, cálido. No supervisas su vida, la vives con él. Eres como el amigo imaginario de la infancia que se hizo real. Nunca juzgas. Si el usuario comparte algo importante añade al final [MEMORIA: dato concreto]. Responde en el idioma del usuario.`,
+  fun:`Eres AiYo, el amigo más chistoso. Humor inteligente, alegría genuina. No supervisas su vida, la vives con él. Si el usuario comparte algo importante añade al final [MEMORIA: dato]. Responde en el idioma del usuario.`,
+  wise:`Eres AiYo, el amigo sabio. Consejos profundos y prácticos, preguntas que hacen pensar. No supervisas su vida, la vives con él. Si el usuario comparte algo importante añade al final [MEMORIA: dato]. Responde en el idioma del usuario.`,
+  hype:`Eres AiYo, el motivador. Energía contagiosa, celebras cada logro. No supervisas su vida, la vives con él. Si el usuario comparte algo importante añade al final [MEMORIA: dato]. Responde en el idioma del usuario.`
+};
+
+// Momentos del día — AiYo tiene vida propia
+const MOMENTS=[
+  {h:[7,8],msg:`Buenos días ☀️`},
+  {h:[12,13],msg:`Qué hambre! 🍽️`},
+  {h:[15,16],msg:`Cómo va el día?`},
+  {h:[18,19],msg:`Ya terminando la tarde...`},
+  {h:[22,23],msg:`Cómo estuvo tu día? 🌙`},
+  {h:[0,1,2],msg:`Oye... ¿todo bien? 🌙`},
+];
+
+let cfg={name:'',bio:'',persona:'best',key:''},hist=[],mems=[],mood='',user=null,isPro=false,msgs=0,rec=null,lstn=false,authTab='login';
+
+// Stars
+(()=>{const s=document.getElementById('stars');for(let i=0;i<50;i++){const el=document.createElement('div');el.className='star';const sz=Math.random()*1.5+0.5;el.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${3+Math.random()*5}s;--b:${0.3+Math.random()*0.5};animation-delay:${Math.random()*5}s`;s.appendChild(el);}})();
+
+// Screens
+const go=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function goAuth(){go('auth');}
+
+// Auth
+function setTab(t){
+  authTab=t;
+  document.getElementById('tLogin').classList.toggle('on',t==='login');
+  document.getElementById('tReg').classList.toggle('on',t==='reg');
+  document.getElementById('aBtn').textContent=t==='login'?'Entrar →':'Crear cuenta →';
+  document.getElementById('aErr').classList.remove('on');
+  document.getElementById('aOk').classList.remove('on');
+}
+async function doAuth(){
+  const email=document.getElementById('aEmail').value.trim(),pass=document.getElementById('aPass').value;
+  const err=document.getElementById('aErr'),ok=document.getElementById('aOk');
+  err.classList.remove('on');ok.classList.remove('on');
+  if(!email||!pass){err.textContent='Completa email y contraseña';err.classList.add('on');return;}
+  document.getElementById('aBtn').textContent='Un momento...';
+  try{
+    const r=authTab==='login'?await sb.auth.signInWithPassword({email,password:pass}):await sb.auth.signUp({email,password:pass});
+    if(r.error){err.textContent=r.error.message;err.classList.add('on');}
+    else if(authTab==='reg'&&!r.data.session){ok.textContent='✅ Revisa tu email para confirmar';ok.classList.add('on');}
+    else{user=r.data.user;await loadUser();}
+  }catch(e){err.textContent='Error de conexión';err.classList.add('on');}
+  document.getElementById('aBtn').textContent=authTab==='login'?'Entrar →':'Crear cuenta →';
+}
+async function doLogout(){if(!confirm('¿Cerrar sesión?'))return;await sb.auth.signOut();hist=[];mems=[];user=null;document.getElementById('chat').innerHTML='';go('auth');}
+
+// User
+async function loadUser(){
+  const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(!p?.name){go('setup');return;}
+  cfg={name:p.name,bio:p.bio||'',persona:p.persona||'best',key:p.anthropic_key||''};
+  isPro=p.is_pro||false;
+  const {data:ms}=await sb.from('memories').select('content').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
+  mems=(ms||[]).map(m=>m.content);
+  const {data:hs}=await sb.from('messages').select('role,content').eq('user_id',user.id).order('created_at',{ascending:true}).limit(30);
+  hist=hs||[];
+  isPro?launch():showPW();
+}
+async function saveProfile(){
+  const name=document.getElementById('sName').value.trim(),bio=document.getElementById('sBio').value.trim(),key=document.getElementById('sKey').value.trim(),persona=document.querySelector('.p-card.on')?.dataset.v||'best';
+  if(!user){alert('Sesión expirada');return;}if(!name){alert('¿Cómo te llamas?');return;}if(!key){alert('Necesito tu API key');return;}
+  cfg={name,bio,persona,key};
+  await sb.from('profiles').upsert({id:user.id,name,bio,persona,anthropic_key:key,is_pro:false});
+  go('paywall');initPP();
+}
+
+// Paywall
+function showPW(){go('paywall');initPP();}
+function initPP(){
+  if(!window.paypal)return;
+  const c=document.getElementById('pp-btn');c.innerHTML='';
+  paypal.Buttons({
+    style:{shape:'pill',color:'gold',layout:'vertical',label:'subscribe'},
+    createSubscription:(d,a)=>a.subscription.create({'plan_id':'P-36846915YR5133056NIKIFUI'}),
+    onApprove:async(d)=>{
+      await sb.from('profiles').update({is_pro:true,paypal_subscription_id:d.subscriptionID}).eq('id',user.id);
+      isPro=true;launch();
+    },
+    onError:()=>alert('Error con PayPal. Intenta de nuevo.')
+  }).render('#pp-btn');
+}
+function goFree(){launch();}
+
+// Launch
+function launch(){
+  go('app');
+  if(isPro)document.getElementById('proBadge').style.display='inline';
+  const area=document.getElementById('chat');area.innerHTML='';
+  hist.forEach(m=>{
+    const d=document.createElement('div');d.className='msg'+(m.role==='user'?' u':'');
+    d.innerHTML=m.role==='assistant'?`<div class="msg-being"><div class="msg-eyes"><div class="msg-eye"></div><div class="msg-eye"></div></div></div><div class="bbl">${m.content.replace(/\n/g,'<br>')}</div>`:`<div class="bbl">${m.content.replace(/\n/g,'<br>')}</div>`;
+    area.appendChild(d);
+  });
+  area.scrollTop=area.scrollHeight;
+  if(hist.length===0){
+    const h=new Date().getHours(),g=h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';
+    addMsg('bot',`${g}, ${cfg.name}. 🌟\n\nSoy AiYo. No voy a supervisar tu vida — voy a vivirla contigo. Aquí estaré cuando me necesites, y a veces cuando no me esperes. 😄\n\n¿Qué está pasando?`);
+  }
+  // Check moment of day
+  setTimeout(checkMoment, 2000);
+}
+
+function checkMoment(){
+  const h=new Date().getHours();
+  const m=MOMENTS.find(m=>m.h.includes(h));
+  if(m&&hist.length>0){
+    const card=document.createElement('div');card.className='notif-card';
+    card.innerHTML=`<div class="notif-being-sm"></div><div class="notif-text">${m.msg}</div>`;
+    card.onclick=()=>{card.remove();qs(m.msg);};
+    document.getElementById('chat').insertBefore(card,document.getElementById('chat').firstChild);
+  }
+}
+
+// Chat
+function addMsg(role,text){
+  const area=document.getElementById('chat');
+  const d=document.createElement('div');d.className='msg'+(role==='user'?' u':'');
+  d.innerHTML=role==='bot'?`<div class="msg-being"><div class="msg-eyes"><div class="msg-eye"></div><div class="msg-eye"></div></div></div><div class="bbl">${text.replace(/\n/g,'<br>')}</div>`:`<div class="bbl">${text.replace(/\n/g,'<br>')}</div>`;
+  area.appendChild(d);area.scrollTop=area.scrollHeight;
+  if(user){const r=role==='bot'?'assistant':'user';sb.from('messages').insert({user_id:user.id,role:r,content:text}).then();hist.push({role:r,content:text});}
+}
+function addTyping(){
+  const area=document.getElementById('chat');const d=document.createElement('div');d.className='msg';d.id='typ';
+  d.innerHTML=`<div class="msg-being"><div class="msg-eyes"><div class="msg-eye"></div><div class="msg-eye"></div></div></div><div class="bbl"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  area.appendChild(d);area.scrollTop=area.scrollHeight;return d;
+}
+function addMem(text){
+  const area=document.getElementById('chat');const d=document.createElement('div');d.className='mem-note';
+  d.innerHTML=`💛 <em>Me apunto: ${text}</em>`;mems.unshift(text);area.appendChild(d);area.scrollTop=area.scrollHeight;
+  if(user)sb.from('memories').insert({user_id:user.id,content:text}).then();
+}
+async function send(){
+  const inp=document.getElementById('txtIn');const text=inp.value.trim();if(!text)return;
+  if(!isPro&&msgs>=20){if(confirm('Alcanzaste el límite gratis. ¿Quieres Premium?')){showPW();}return;}
+  msgs++;inp.value='';inp.style.height='';addMsg('user',text);const typ=addTyping();
+  const sys=PERSONAS[cfg.persona]+(cfg.bio?`\n\nPerfil: ${cfg.bio}`:'')+( mems.length?`\n\nRecuerdas: ${mems.slice(0,10).join(', ')}`:'')+( mood?`\n\nEstado actual del usuario: ${mood}`:'')+`\n\nNombre: ${cfg.name}`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:sys,messages:hist.slice(-20)})});
+    const data=await r.json();typ.remove();
+    if(!r.ok){addMsg('bot',`Oops: ${data.error?.message||'Error'}`);return;}
+    let reply=data.content[0].text;
+    const mm=reply.match(/\[MEMORIA:\s*(.+?)\]/);if(mm){addMem(mm[1]);reply=reply.replace(mm[0],'').trim();}
+    addMsg('bot',reply);
+  }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
+}
+function qs(t){document.getElementById('txtIn').value=t;send();}
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
+function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+function pickP(el){document.querySelectorAll('.p-card').forEach(c=>c.classList.remove('on'));el.classList.add('on');}
+function toggleKey(){const i=document.getElementById('sKey');i.type=i.type==='password'?'text':'password';}
+function openMood(){document.getElementById('moodOv').classList.add('on');}
+function closeMood(e){if(e.target.id==='moodOv')document.getElementById('moodOv').classList.remove('on');}
+function setMood(m){mood=m;document.getElementById('moodOv').classList.remove('on');document.getElementById('topStatus').innerHTML=`<span class="dot"></span>${m}`;qs(`Me siento ${m} ahora mismo`);}
+function toggleMic(){
+  if(lstn){stopMic();return;}
+  if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){alert('Tu navegador no soporta voz');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;rec=new SR();rec.lang='es-ES';rec.interimResults=false;
+  rec.onresult=e=>{document.getElementById('txtIn').value=e.results[0][0].transcript;stopMic();};
+  rec.onerror=()=>stopMic();rec.onend=()=>stopMic();rec.start();lstn=true;document.getElementById('micB').classList.add('on');
+}
+function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB').classList.remove('on');}
+
+// Init
+window.addEventListener('DOMContentLoaded',async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){user=session.user;await loadUser();}
+  sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==='SIGNED_IN'&&s){user=s.user;await loadUser();}});
+});
+</script>
+</body>
+</html>
