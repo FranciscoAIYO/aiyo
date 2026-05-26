@@ -295,7 +295,7 @@ html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'DM Sans
     <div id="aErr" class="msg-err"></div>
     <div id="aOk" class="msg-ok"></div>
     <div class="auth-field"><label class="auth-lbl">Email</label><input class="auth-in" id="aEmail" type="email" placeholder="tu@email.com"></div>
-    <div class="auth-field"><label class="auth-lbl">Contraseña</label><input class="auth-in" id="aPass" type="password" placeholder="••••••••"></div>
+    <div class="auth-field"><label class="auth-lbl">Contraseña</label><input class="auth-in" id="aPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="auth-go" id="aBtn" onclick="doAuth()">Entrar →</button>
   </div>
 </div>
@@ -316,7 +316,7 @@ html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'DM Sans
         <div class="p-card" data-v="hype" onclick="pickP(this)"><div class="em">🔥</div><div class="nm">El motivador</div><div class="ds">Energía pura</div></div>
       </div>
     </div>
-    <div class="s-sec"><div class="s-label">API Key de Anthropic</div><div class="key-wrap"><input class="s-in" id="sKey" type="password" placeholder="sk-ant-..."><button class="key-eye" onclick="toggleKey()">👁️</button></div></div>
+    <div class="s-sec"><div class="s-label">API Key de Anthropic</div><div class="key-wrap"><input class="s-in" id="sKey" type="text" placeholder="sk-ant-api03-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><button class="key-eye" onclick="toggleKey()">👁️</button></div></div>
   </div>
   <div class="setup-foot"><button class="setup-btn" onclick="saveProfile()">Conocer a mi AiYo ✨</button></div>
 </div>
@@ -479,10 +479,11 @@ async function doAuth(){
   document.getElementById('aBtn').textContent='Un momento...';
   try{
     let r;
+    const timeout = new Promise((_,reject) => setTimeout(() => reject(new Error('Timeout — intenta de nuevo')), 10000));
     if(authTab==='login'){
-      r=await sb.auth.signInWithPassword({email,password:pass});
+      r=await Promise.race([sb.auth.signInWithPassword({email,password:pass}), timeout]);
     } else {
-      r=await sb.auth.signUp({email,password:pass});
+      r=await Promise.race([sb.auth.signUp({email,password:pass}), timeout]);
     }
     if(r.error){err.textContent=r.error.message;err.classList.add('on');document.getElementById('aBtn').textContent=authTab==='login'?'Entrar →':'Crear cuenta →';}
     else if(authTab==='reg'&&!r.data.session){ok.textContent='✅ Revisa tu email para confirmar';ok.classList.add('on');document.getElementById('aBtn').textContent='Crear cuenta →';}
