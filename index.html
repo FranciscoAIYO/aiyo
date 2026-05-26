@@ -401,7 +401,7 @@ html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'DM Sans
   </div>
 </div>
 
-<script src="https://www.paypal.com/sdk/js?client-id=AfjCMzlX39xQqJhtLbfEVrTKsGyL3BVIAieEjSoXwsnTj3h6zo3sW9rfriRGpQnZ-465OXI1cudlHy8s&vault=true&intent=subscription&currency=USD"></script>
+
 <script>
 const SB_URL='https://qvhcousyqtjebiekdiuf.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2aGNvdXN5cXRqZWJpZWtkaXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODg5MjUsImV4cCI6MjA5NTE2NDkyNX0.p48SQK3eRQ1i-8vmbmHJYJaNfQDkWOXE6OMTyOfNNeY';
@@ -504,8 +504,15 @@ async function saveProfile(){
 
 // Paywall
 function showPW(){go('paywall');initPP();}
+function loadPayPalSDK(callback){
+  if(window.paypal){callback();return;}
+  const s=document.createElement('script');
+  s.src='https://www.paypal.com/sdk/js?client-id=AfjCMzlX39xQqJhtLbfEVrTKsGyL3BVIAieEjSoXwsnTj3h6zo3sW9rfriRGpQnZ-465OXI1cudlHy8s&vault=true&intent=subscription&currency=USD';
+  s.onload=callback;
+  document.head.appendChild(s);
+}
 function initPP(){
-  if(!window.paypal)return;
+  loadPayPalSDK(function(){
   const c=document.getElementById('pp-btn');c.innerHTML='';
   paypal.Buttons({
     style:{shape:'pill',color:'gold',layout:'vertical',label:'subscribe'},
@@ -516,6 +523,7 @@ function initPP(){
     },
     onError:()=>alert('Error con PayPal. Intenta de nuevo.')
   }).render('#pp-btn');
+  });
 }
 function goFree(){launch();}
 
