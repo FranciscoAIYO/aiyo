@@ -472,12 +472,16 @@ async function doAuth(){
   if(!email||!pass){err.textContent='Completa email y contraseña';err.classList.add('on');return;}
   document.getElementById('aBtn').textContent='Un momento...';
   try{
-    const r=authTab==='login'?await sb.auth.signInWithPassword({email,password:pass}):await sb.auth.signUp({email,password:pass});
-    if(r.error){err.textContent=r.error.message;err.classList.add('on');}
-    else if(authTab==='reg'&&!r.data.session){ok.textContent='✅ Revisa tu email para confirmar';ok.classList.add('on');}
+    let r;
+    if(authTab==='login'){
+      r=await sb.auth.signInWithPassword({email,password:pass});
+    } else {
+      r=await sb.auth.signUp({email,password:pass});
+    }
+    if(r.error){err.textContent=r.error.message;err.classList.add('on');document.getElementById('aBtn').textContent=authTab==='login'?'Entrar →':'Crear cuenta →';}
+    else if(authTab==='reg'&&!r.data.session){ok.textContent='✅ Revisa tu email para confirmar';ok.classList.add('on');document.getElementById('aBtn').textContent='Crear cuenta →';}
     else{user=r.data.user;await loadUser();}
-  }catch(e){err.textContent='Error de conexión';err.classList.add('on');}
-  document.getElementById('aBtn').textContent=authTab==='login'?'Entrar →':'Crear cuenta →';
+  }catch(e){console.error('Auth error:',e);err.textContent='Error: '+e.message;err.classList.add('on');document.getElementById('aBtn').textContent=authTab==='login'?'Entrar →':'Crear cuenta →';}
 }
 async function doLogout(){if(!confirm('¿Cerrar sesión?'))return;await sb.auth.signOut();hist=[];mems=[];user=null;document.getElementById('chat').innerHTML='';go('auth');}
 
