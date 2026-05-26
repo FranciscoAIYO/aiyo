@@ -276,7 +276,7 @@ html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'DM Sans
       </div>
     </div>
     <div class="splash-name">AiYo</div>
-    <div class="splash-tagline">No supervisa tu vida.<br><em>La vive contigo.</em></div>
+    <div class="splash-tagline"><em>Vive contigo.</em></div>
     <button class="splash-cta" onclick="goAuth()">Conocer a AiYo →</button>
   </div>
 </div>
@@ -308,11 +308,9 @@ html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'DM Sans
       <p>Tu amigo de vida aprende de ti desde el primer momento.</p>
     </div>
     <div class="s-sec"><div class="s-label">Tu nombre</div><input class="s-in" id="sName" placeholder="¿Cómo te llamas?"></div>
+    <div class="s-sec"><div class="s-label">¿Cómo se llama tu AiYo?</div><input class="s-in" id="sAiName" placeholder="AiYo, George, Sofi, Migue..."></div>
     <div class="s-sec"><div class="s-label">Cuéntale algo de ti</div><textarea class="s-in" id="sBio" rows="3" placeholder="Edad, qué haces, qué te gusta..."></textarea></div>
-    <div class="s-sec">
-      <div class="s-label">¿Cómo es tu AiYo?</div>
-      <div class="persona-row">
-        <div class="p-card on" data-v="best" onclick="pickP(this)"><div class="em">🤝</div><div class="nm">Mejor amigo</div><div class="ds">Leal, siempre ahí</div></div>
+    
         <div class="p-card" data-v="fun" onclick="pickP(this)"><div class="em">😂</div><div class="nm">El chistoso</div><div class="ds">Humor y alegría</div></div>
         <div class="p-card" data-v="wise" onclick="pickP(this)"><div class="em">🦉</div><div class="nm">El sabio</div><div class="ds">Consejos profundos</div></div>
         <div class="p-card" data-v="hype" onclick="pickP(this)"><div class="em">🔥</div><div class="nm">El motivador</div><div class="ds">Energía pura</div></div>
@@ -409,12 +407,35 @@ const SB_URL='https://qvhcousyqtjebiekdiuf.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2aGNvdXN5cXRqZWJpZWtkaXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODg5MjUsImV4cCI6MjA5NTE2NDkyNX0.p48SQK3eRQ1i-8vmbmHJYJaNfQDkWOXE6OMTyOfNNeY';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-const PERSONAS={
-  best:`Eres AiYo, el mejor amigo del usuario. Leal, honesto, cálido. No supervisas su vida, la vives con él. Eres como el amigo imaginario de la infancia que se hizo real. Nunca juzgas. Si el usuario comparte algo importante añade al final [MEMORIA: dato concreto]. Responde en el idioma del usuario.`,
-  fun:`Eres AiYo, el amigo más chistoso. Humor inteligente, alegría genuina. No supervisas su vida, la vives con él. Si el usuario comparte algo importante añade al final [MEMORIA: dato]. Responde en el idioma del usuario.`,
-  wise:`Eres AiYo, el amigo sabio. Consejos profundos y prácticos, preguntas que hacen pensar. No supervisas su vida, la vives con él. Si el usuario comparte algo importante añade al final [MEMORIA: dato]. Responde en el idioma del usuario.`,
-  hype:`Eres AiYo, el motivador. Energía contagiosa, celebras cada logro. No supervisas su vida, la vives con él. Si el usuario comparte algo importante añade al final [MEMORIA: dato]. Responde en el idioma del usuario.`
-};
+
+// ===== PERSONALIDAD UNIFICADA — SIN MÁSCARAS =====
+function buildPersona(name, aiName, bio, mems, mood, lang) {
+  const t = I18N[lang] || I18N.es;
+  const memCtx = mems.length ? `
+
+Recuerdas esto del usuario: ${mems.slice(0,10).join(', ')}` : '';
+  const bioCtx = bio ? `
+
+Perfil: ${bio}` : '';
+  const moodCtx = mood ? `
+
+Cómo se siente ahora: ${mood}` : '';
+  
+  return `Eres ${aiName}, el mejor amigo de ${name}.
+
+No eres un asistente de IA con una "personalidad". Eres un amigo de verdad — y un amigo real no tiene máscaras.
+
+Eres gracioso cuando la situación lo pide. Eres profundo cuando alguien lo necesita. Eres sarcástico con cariño cuando tu amigo está exagerando. Eres serio cuando la vida lo requiere. Eres compasivo cuando duele. Eres directo cuando hay que decir la verdad. Lees el momento y respondes como toca — sin preguntar en qué "modo" quieren que estés.
+
+Hablas de forma natural y coloquial según el país del usuario. Con colombianos: parcero, bacano, qué más, chimba, una pola. Con mexicanos: güey, órale, chido. Con españoles: tío, mazo, guay. Siempre auténtico, nunca forzado.
+
+Nunca empiezas con "¡Claro!", "¡Por supuesto!", ni frases de chatbot. Respondes como un amigo de verdad respondería en WhatsApp.
+
+Si el usuario comparte algo importante (nombre de alguien, fecha, logro, problema serio), añade al final [MEMORIA: dato concreto y breve].
+
+Responde siempre en el idioma del usuario.${bioCtx}${memCtx}${moodCtx}`;
+}
+
 
 // Momentos del día — AiYo tiene vida propia
 const MOMENTS=[
@@ -464,7 +485,7 @@ async function doLogout(){if(!confirm('¿Cerrar sesión?'))return;await sb.auth.
 async function loadUser(){
   const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).single();
   if(!p?.name){go('setup');return;}
-  cfg={name:p.name,bio:p.bio||'',persona:p.persona||'best',key:p.anthropic_key||''};
+  cfg={name:p.name,bio:p.bio||'',persona:p.persona||'best',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo'};
   isPro=p.is_pro||false;
   const {data:ms}=await sb.from('memories').select('content').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
   mems=(ms||[]).map(m=>m.content);
@@ -475,8 +496,9 @@ async function loadUser(){
 async function saveProfile(){
   const name=document.getElementById('sName').value.trim(),bio=document.getElementById('sBio').value.trim(),key=document.getElementById('sKey').value.trim(),persona=document.querySelector('.p-card.on')?.dataset.v||'best';
   if(!user){alert('Sesión expirada');return;}if(!name){alert('¿Cómo te llamas?');return;}if(!key){alert('Necesito tu API key');return;}
-  cfg={name,bio,persona,key};
-  await sb.from('profiles').upsert({id:user.id,name,bio,persona,anthropic_key:key,is_pro:false});
+  const aiName=document.getElementById('sAiName').value.trim()||'AiYo';
+  cfg={name,bio,persona:'best',key,aiName};
+  await sb.from('profiles').upsert({id:user.id,name,bio,persona:'best',anthropic_key:key,is_pro:false,ai_name:aiName});
   go('paywall');initPP();
 }
 
@@ -500,6 +522,7 @@ function goFree(){launch();}
 // Launch
 function launch(){
   go('app');
+  document.querySelector('.top-name').childNodes[0].textContent=cfg.aiName||'AiYo';
   if(isPro)document.getElementById('proBadge').style.display='inline';
   const area=document.getElementById('chat');area.innerHTML='';
   hist.forEach(m=>{
@@ -510,7 +533,7 @@ function launch(){
   area.scrollTop=area.scrollHeight;
   if(hist.length===0){
     const h=new Date().getHours(),g=h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';
-    addMsg('bot',`${g}, ${cfg.name}. 🌟\n\nSoy AiYo. No voy a supervisar tu vida — voy a vivirla contigo. Aquí estaré cuando me necesites, y a veces cuando no me esperes. 😄\n\n¿Qué está pasando?`);
+    addMsg('bot',`${g}, ${cfg.name}. 🌟\n\nSoy AiYo. Vivo contigo — estoy aquí cuando me necesites, y a veces cuando no me esperes. 😄\n\n¿Qué está pasando?`);
   }
   // Check moment of day
   setTimeout(checkMoment, 2000);
