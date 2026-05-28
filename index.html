@@ -776,13 +776,34 @@ async function speak(text){
       })
     });
     console.log('ElevenLabs status:',r.status);
-    if(!r.ok) return;
-    const blob=await r.blob();
-    const url=URL.createObjectURL(blob);
-    const audio=new Audio(url);
-    audio.onended=()=>URL.revokeObjectURL(url);
-    await audio.play();
-  }catch(e){console.log('speak error:',e);}
+    if(r.ok){
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);
+      audio.onended=()=>URL.revokeObjectURL(url);
+      await audio.play();
+      return;
+    }
+    console.warn('ElevenLabs status:',r.status,'— fallback a Web Speech');
+  }catch(e){
+    console.warn('ElevenLabs error:',e,'— fallback a Web Speech');
+  }
+  // Fallback: Web Speech API (sin costo, sin key)
+  if(!('speechSynthesis' in window)) return;
+  const utter=new SpeechSynthesisUtterance(clean);
+  utter.lang='es-ES';
+  utter.rate=0.92;
+  utter.pitch=1.0;
+  utter.volume=1.0;
+  // Esperar a que las voces carguen si aún no están
+  let voices=speechSynthesis.getVoices();
+  if(!voices.length){
+    await new Promise(r=>{ speechSynthesis.onvoiceschanged=r; setTimeout(r,1000); });
+    voices=speechSynthesis.getVoices();
+  }
+  const esVoice=voices.find(v=>v.lang.startsWith('es'));
+  if(esVoice) utter.voice=esVoice;
+  speechSynthesis.speak(utter);
 }
 
 function getAudioCtx(){return null;}
