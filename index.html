@@ -405,6 +405,7 @@ body::before{
       <div class="hdr-status" id="hdrStatus"><span class="pulse"></span>Contigo siempre</div>
     </div>
     <div class="hdr-btns">
+      <div class="hbtn" id="voiceToggle" onclick="toggleVoice()">🔊</div>
       <div class="hbtn" onclick="openMood()">💭</div>
       <div class="hbtn" onclick="doLogout()">↪</div>
     </div>
@@ -458,7 +459,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
 
 // ===== STATE =====
-let cfg={name:'',bio:'',key:'',aiName:'AiYo'},
+let cfg={name:'',bio:'',key:'',aiName:'AiYo',elevenKey:'sk_5a2727ebe2b9739bf7a1716ed9e9aaa7e7f5848bf5e7972f',voiceId:'EXAVITQu4vr4xnSDxMaL'},
     hist=[],mems=[],mood='',user=null,isPro=false,
     msgs=0,rec=null,lstn=false,authTab='login';
 
@@ -559,7 +560,9 @@ function launch(isNew=false){
   if(isNew||hist.length===0){
     const h=new Date().getHours();
     const g=h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';
-    addMsg('bot',`${g}, ${cfg.name}. 🌟\n\nSoy ${cfg.aiName}. No tienes que aprender nada, ni configurar nada — solo habla conmigo y yo hago el resto. Estoy aquí cuando me necesites, y a veces cuando no me esperes. 😄\n\n¿Qué está pasando?`);
+    const welcomeMsg=`${g}, ${cfg.name}. 🌟\n\nSoy ${cfg.aiName}. Vivo contigo — estoy aquí cuando me necesites. ¿Qué está pasando?`;
+    addMsg('bot',welcomeMsg);
+    setTimeout(()=>{ if(voiceEnabled) speak(welcomeMsg); },500);
   }
   // Check moment of day
   setTimeout(checkDayMoment,1500);
@@ -660,6 +663,7 @@ ${mood?`Estado actual: ${mood}`:''}`;
     if(spMatch){
       reply=reply.replace(spMatch[0],'').trim();
       addMsg('bot',reply);
+      if(voiceEnabled) speak(reply);
       addSpotifyPrompt(spMatch[1]);
     } else {
       // Extract memory
@@ -716,6 +720,42 @@ function toggleMic(){
   rec.start();lstn=true;document.getElementById('micB').classList.add('on');
 }
 function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB').classList.remove('on');}
+
+
+// ===== ELEVENLABS VOICE =====
+let audioQueue=[], isSpeaking=false;
+
+async function speak(text){
+  if(!cfg.elevenKey) return;
+  // Clean text - remove markdown
+  const clean=text.replace(/\*\*/g,'').replace(/\*/g,'').replace(/\[.*?\]/g,'').replace(/<br>/g,' ').trim();
+  if(!clean) return;
+  try{
+    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}/stream`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','xi-api-key':cfg.elevenKey},
+      body:JSON.stringify({
+        text:clean,
+        model_id:'eleven_multilingual_v2',
+        voice_settings:{stability:0.5,similarity_boost:0.75,style:0.3,use_speaker_boost:true}
+      })
+    });
+    if(!r.ok) return;
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const audio=new Audio(url);
+    audio.onended=()=>URL.revokeObjectURL(url);
+    audio.play();
+  }catch(e){console.log('ElevenLabs error:',e);}
+}
+
+// Toggle voice on/off
+let voiceEnabled=true;
+function toggleVoice(){
+  voiceEnabled=!voiceEnabled;
+  const btn=document.getElementById('voiceToggle');
+  if(btn) btn.textContent=voiceEnabled?'🔊':'🔇';
+}
 
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded',async()=>{
