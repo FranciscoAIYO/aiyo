@@ -652,7 +652,7 @@ ${mood?`Estado actual: ${mood}`:''}`;
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:sys,messages:hist.slice(-20)})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:hist.slice(-20)})
     });
     const data=await r.json();typ.remove();
     if(!r.ok){addMsg('bot',`Error: ${data.error?.message||'API key inválida'}`);return;}
@@ -747,7 +747,7 @@ async function speak(text){
   if(!clean||clean.length<2) return;
   console.log('Speaking:',clean.slice(0,50));
   try{
-    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,{
+    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,{
       method:'POST',
       headers:{'Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
       body:JSON.stringify({
