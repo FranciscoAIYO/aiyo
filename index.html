@@ -670,6 +670,7 @@ ${mood?`Estado actual: ${mood}`:''}`;
       const mm=reply.match(/\[MEMORIA:\s*(.+?)\]/);
       if(mm){addMem(mm[1]);reply=reply.replace(mm[0],'').trim();}
       addMsg('bot',reply);
+      if(voiceEnabled) speak(reply);
     }
   }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
 }
