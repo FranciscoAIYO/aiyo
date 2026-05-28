@@ -742,24 +742,24 @@ let audioQueue=[], isSpeaking=false;
 async function speak(text){
   if(!voiceEnabled) return;
   const ELEVEN_KEY='sk_2d6c2db6b7c426834943258deccd6153fa6b3715b55deff2';
-  const VOICE_ID='EXAVITQu4vr4xnSDxMaL';
+  const VOICE_ID='pNInz6obpgDQGcFmaJgB';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
     .replace(/\[.*?\]/g,'')
     .replace(/<br>/g,' ')
     .replace(/\n/g,' ')
     // Convert laughs to natural pauses
-    .replace(/ja+ja+ja+[ja]*/gi, '...')
-    .replace(/je+je+je+[je]*/gi, '...')
-    .replace(/ji+ji+ji+[ji]*/gi, '...')
-    .replace(/ha+ha+ha+[ha]*/gi, '...')
-    .replace(/he+he+he+[he]*/gi, '...')
+    .replace(/ja+ja+ja+[ja]*/gi, ',')
+    .replace(/je+je+je+[je]*/gi, ',')
+    .replace(/ji+ji+ji+[ji]*/gi, ',')
+    .replace(/ha+ha+ha+[ha]*/gi, ',')
+    .replace(/he+he+he+[he]*/gi, ',')
     .replace(/lol/gi, '')
     .replace(/xd+/gi, '')
     // Remove emojis
     .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
     // Remove multiple dots
-    .replace(/\.{4,}/g, '...')
+    .replace(/\.{4,}/g, '.')
     // Clean extra spaces
     .replace(/\s+/g, ' ')
     .trim();
