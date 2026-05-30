@@ -691,24 +691,73 @@ function launch(isNew=false){
   setTimeout(checkDayMoment,1500);
 }
 
-// ===== MOMENTOS DEL DÍA — AiYo toma iniciativa =====
+// ===== MOMENTOS — AiYo toma iniciativa =====
 function checkDayMoment(){
-  const h=new Date().getHours();
-  const day=new Date().getDay();
-  const area=document.getElementById('chat');
-  let moment=null;
+  const now = new Date();
+  const h = now.getHours();
+  const day = now.getDay();
+  const name = cfg.name || '';
+  const aiName = cfg.aiName || 'AiYo';
 
-  if(h>=7&&h<9) moment={text:`¿Meditación de mañana? 🌅`,action:'Ponme meditación de Joe Dispenza'};
-  else if(h>=12&&h<13) moment={text:`¡Qué hambre! ¿Pedimos algo? 🍽️`,action:'Ayúdame a decidir qué comer'};
-  else if(h>=15&&h<16) moment={text:`¿Cómo va el día? ☀️`,action:'Cuéntame cómo está tu día'};
-  else if((day===5||day===6)&&h>=18) moment={text:`¡Viernes! ¿Planes para esta noche? 🎉`,action:'Ayúdame a planear la noche'};
-  else if(h>=22) moment={text:`¿Cómo estuvo tu día? 🌙`,action:'Resumen del día'};
+  // Calcular días desde la última conversación
+  const lastSeen = localStorage.getItem('aiyo_last_seen');
+  const lastDate = lastSeen ? new Date(lastSeen) : null;
+  const daysSince = lastDate ? Math.floor((now - lastDate) / (1000*60*60*24)) : 0;
+  localStorage.setItem('aiyo_last_seen', now.toISOString());
 
-  if(moment&&hist.length>0){
-    const card=document.createElement('div');card.className='moment-card';
-    card.innerHTML=`<div class="mc-being"></div><div class="mc-text">${moment.text}</div><div class="mc-action">→</div>`;
-    card.onclick=()=>{card.remove();qs(moment.action);};
-    area.insertBefore(card,area.firstChild);
+  let moment = null;
+
+  // PRIORIDAD 1: Reencuentro — si lleva días sin hablar
+  if(daysSince >= 3) {
+    const opts = [
+      {text: `${daysSince} días sin saber de ti, ${name} 👀 ¿Todo bien?`, action: `Cuéntame qué pasó estos ${daysSince} días`},
+      {text: `Ey, te había extrañado 👋 ¿Dónde andabas?`, action: 'Cuéntame qué has estado haciendo'},
+      {text: `${name}! Tiempo sin verte por aquí 🌟 ¿Qué me perdí?`, action: 'Ponme al día'}
+    ];
+    moment = opts[Math.floor(Math.random()*opts.length)];
+  }
+  // PRIORIDAD 2: Momentos del día con personalidad
+  else if(hist.length > 2) {
+    if(h>=6&&h<9) {
+      const opts=[
+        {text:`Buenos días, ${name} ☀️ ¿Arrancando con todo?`, action:'Cuéntame cómo arrancó la mañana'},
+        {text:`Mañanita de ${['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][day]} 🌅 ¿Cómo amaneciste?`, action:'Cuéntame cómo estás hoy'}
+      ];
+      moment = opts[Math.floor(Math.random()*opts.length)];
+    }
+    else if(h>=12&&h<14){
+      moment = {text:`Hora del almuerzo 🍽️ ¿Qué vas a comer hoy?`, action:'Ayúdame a decidir qué comer'};
+    }
+    else if(h>=15&&h<17){
+      moment = {text:`Tarde del ${['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][day]} ☕ ¿Cómo va todo?`, action:'Cuéntame cómo va tu día'};
+    }
+    else if(day===5&&h>=18){
+      moment = {text:`¡VIERNES! 🎉 El mejor día de la semana. ¿Qué hay de planes?`, action:'Ayúdame a planear el fin de semana'};
+    }
+    else if((day===6||day===0)&&h>=10&&h<20){
+      moment = {text:`${day===6?'Sábado':'Domingo'} en la tarde 😌 ¿Descansando o haciendo algo?`, action:'Cuéntame qué estás haciendo'};
+    }
+    else if(h>=21){
+      const opts=[
+        {text:`¿Cómo quedó el día, ${name}? 🌙`, action:'Cuéntame cómo estuvo tu día'},
+        {text:`Noche de ${['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][day]} 🌙 ¿Cómo la pasaste?`, action:'Resumen del día'}
+      ];
+      moment = opts[Math.floor(Math.random()*opts.length)];
+    }
+  }
+
+  if(moment){
+    // Solo mostrar si no se mostró ya en esta sesión
+    const sessionKey = 'aiyo_moment_' + now.toDateString() + '_' + h;
+    if(localStorage.getItem(sessionKey)) return;
+    localStorage.setItem(sessionKey, '1');
+
+    const area = document.getElementById('chat');
+    const card = document.createElement('div');
+    card.className = 'moment-card';
+    card.innerHTML = `<div class="mc-being"></div><div class="mc-text">${moment.text}</div><div class="mc-action">→</div>`;
+    card.onclick = ()=>{ card.style.opacity='0'; setTimeout(()=>card.remove(),300); qs(moment.action); };
+    setTimeout(()=>{ area.insertBefore(card, area.firstChild); }, 800);
   }
 }
 
