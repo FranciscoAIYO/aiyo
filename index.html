@@ -348,7 +348,42 @@ body::before{
     <div class="splash-name">AiYo</div>
     <div class="splash-tag">Vive contigo.</div>
     <div class="splash-desc">No tienes que aprender nada.<br>Solo dile lo que quieres.</div>
-    <button class="splash-btn" onclick="go('auth')">Conocer a AiYo →</button>
+    <button class="splash-btn" onclick="goDisclaimer()">Conocer a AiYo →</button>
+  </div>
+</div>
+
+
+<!-- DISCLAIMER -->
+<div class="screen" id="disclaimer">
+  <div class="auth-card" style="max-width:420px;text-align:left;">
+    <div style="font-size:2rem;text-align:center;margin-bottom:8px;">🤝</div>
+    <div class="auth-h" style="text-align:center;margin-bottom:4px;">Antes de entrar</div>
+    <div class="auth-s" style="text-align:center;margin-bottom:20px;">Esto es lo que necesitas saber</div>
+
+    <div style="font-size:0.92rem;color:#ccc;line-height:1.7;margin-bottom:18px;">
+      <p><strong style="color:#fff;">AiYo es un amigo, no un profesional.</strong><br>
+      Para temas de salud, legales o financieros serios, siempre te vamos a recomendar hablar con un experto. Nos importa que estés bien de verdad.</p>
+
+      <p><strong style="color:#fff;">AiYo no reemplaza ayuda profesional.</strong><br>
+      Si estás pasando por un momento difícil, estamos aquí — pero también te animamos a buscar apoyo humano. En Colombia puedes llamar a la Línea 106.</p>
+
+      <p><strong style="color:#fff;">Tus conversaciones nos ayudan a mejorar.</strong><br>
+      Guardamos tus chats para que AiYo te recuerde y mejore contigo. No vendemos tu información a nadie. Puedes pedir borrar tus datos cuando quieras.</p>
+
+      <p><strong style="color:#fff;">Debes tener 18 años o más.</strong><br>
+      AiYo está diseñado para adultos. Si eres menor de edad, por favor no uses esta app.</p>
+    </div>
+
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:20px;">
+      <input type="checkbox" id="disclaimerCheck" style="margin-top:3px;width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+      <label for="disclaimerCheck" style="font-size:0.88rem;color:#ccc;cursor:pointer;line-height:1.5;">
+        Entiendo y acepto los <a href="#" onclick="showTerms();return false;" style="color:#a78bfa;">Términos de uso</a> y la <a href="#" onclick="showPrivacy();return false;" style="color:#a78bfa;">Política de privacidad</a> de AiYo.
+      </label>
+    </div>
+
+    <button class="splash-btn" id="disclaimerBtn" onclick="acceptDisclaimer()" style="opacity:0.4;pointer-events:none;width:100%;">
+      Entrar a AiYo →
+    </button>
   </div>
 </div>
 
@@ -829,6 +864,41 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(ev==='SIGNED_IN'&&s&&!user){user=s.user;await loadUser();}
   });
 });
+
+// ===== DISCLAIMER =====
+function goDisclaimer(){
+  if(localStorage.getItem('aiyo_accepted')==='true'){
+    go('auth');
+  } else {
+    go('disclaimer');
+  }
+}
+
+function acceptDisclaimer(){
+  localStorage.setItem('aiyo_accepted','true');
+  go('auth');
+}
+
+function showTerms(){
+  alert('Términos de uso\n\nAiYo es un compañero de conversación basado en inteligencia artificial. No es un profesional de salud, legal ni financiero. El uso de AiYo es bajo tu propia responsabilidad. Debes tener 18 años o más para usar esta aplicación. Nos reservamos el derecho de suspender cuentas que usen AiYo para actividades ilegales o dañinas.');
+}
+
+function showPrivacy(){
+  alert('Política de privacidad\n\nGuardamos tus conversaciones para que AiYo te recuerde entre sesiones y mejore contigo. No vendemos ni compartimos tu información personal con terceros. Puedes solicitar la eliminación total de tus datos en cualquier momento escribiéndonos. Usamos Supabase como plataforma segura de almacenamiento.');
+}
+
+// Activar botón solo cuando el checkbox esté marcado
+document.addEventListener('DOMContentLoaded', () => {
+  const chk = document.getElementById('disclaimerCheck');
+  const btn = document.getElementById('disclaimerBtn');
+  if(chk && btn){
+    chk.addEventListener('change', () => {
+      btn.style.opacity = chk.checked ? '1' : '0.4';
+      btn.style.pointerEvents = chk.checked ? 'auto' : 'none';
+    });
+  }
+});
+
 </script>
 </body>
 </html>
