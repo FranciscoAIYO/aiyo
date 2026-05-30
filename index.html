@@ -529,6 +529,7 @@ body::before{
     <div class="hdr-btns">
       <div class="hbtn" id="voiceToggle" onclick="toggleVoice()">🔊</div>
       <div class="hbtn" onclick="openMood()">💭</div>
+      <div class="hbtn" onclick="openMemory()" title="Lo que recuerdo de ti">🧠</div>
       <div class="hbtn" onclick="doLogout()">↪</div>
     </div>
   </div>
@@ -952,6 +953,76 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(ev==='SIGNED_IN'&&s&&!user){user=s.user;await loadUser();}
   });
 });
+
+
+
+// ===== MEMORY DRAWER =====
+async function openMemory(){
+  document.getElementById('memoryDrawer').style.display='block';
+  document.body.style.overflow='hidden';
+  await renderMemories();
+}
+
+function closeMemory(){
+  document.getElementById('memoryDrawer').style.display='none';
+  document.body.style.overflow='';
+}
+
+async function renderMemories(){
+  const list = document.getElementById('memoryList');
+  const empty = document.getElementById('memoryEmpty');
+  list.innerHTML='<div style="color:#555;font-size:0.88rem;text-align:center;padding:20px;">Cargando...</div>';
+
+  try {
+    let items = [];
+    if(user){
+      const {data} = await sb.from('memories').select('id,content,created_at')
+        .eq('user_id',user.id).order('created_at',{ascending:false}).limit(30);
+      items = data || [];
+    } else {
+      items = mems.map((m,i)=>({id:'local_'+i, content:m, created_at:null}));
+    }
+
+    if(!items.length){
+      list.innerHTML='';
+      empty.style.display='block';
+      return;
+    }
+    empty.style.display='none';
+    list.innerHTML = items.map(m=>`
+      <div id="mem_${m.id}" style="display:flex;align-items:flex-start;gap:10px;background:#1a1a35;border-radius:12px;padding:12px 14px;border:1px solid #2a2a4a;">
+        <div style="font-size:0.88rem;color:#ccc;flex:1;line-height:1.5;">${m.content}</div>
+        <button onclick="deleteMemory('${m.id}')" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0;flex-shrink:0;transition:color 0.2s;" onmouseover="this.style.color='#e24b4a'" onmouseout="this.style.color='#555'">🗑️</button>
+      </div>
+    `).join('');
+  } catch(e) {
+    list.innerHTML='<div style="color:#e24b4a;font-size:0.88rem;text-align:center;padding:20px;">Error cargando memorias</div>';
+  }
+}
+
+async function deleteMemory(id){
+  const el = document.getElementById('mem_'+id);
+  if(el) { el.style.opacity='0.3'; el.style.pointerEvents='none'; }
+
+  if(id.startsWith('local_')){
+    const idx = parseInt(id.replace('local_',''));
+    mems.splice(idx,1);
+  } else if(user){
+    await sb.from('memories').delete().eq('id',id).eq('user_id',user.id);
+    mems = mems.filter((_,i)=> {
+      return true;
+    });
+    const {data} = await sb.from('memories').select('content')
+      .eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
+    mems = (data||[]).map(m=>m.content);
+  }
+  if(el) el.remove();
+  const remaining = document.querySelectorAll('#memoryList [id^="mem_"]');
+  if(!remaining.length){
+    document.getElementById('memoryList').innerHTML='';
+    document.getElementById('memoryEmpty').style.display='block';
+  }
+}
 
 
 // ===== NUEVO ONBOARDING =====
