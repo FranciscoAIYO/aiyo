@@ -819,7 +819,14 @@ Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade 
 ${cfg.bio?`Perfil de ${cfg.name}: ${cfg.bio}`:''}
 ${mems.length?`Recuerdas de ${cfg.name}: ${mems.slice(0,10).join(', ')}`:''}
 ${mood?`Estado actual: ${mood}`:''}
-${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][n.getDay()];const t=h<6?'madrugada':h<12?'manana':h<14?'mediodia':h<19?'tarde':'noche';const w=n.getDay()===0||n.getDay()===6;const mo=n.getDay()===1;const fr=n.getDay()===5;return 'CONTEXTO: Es '+d+' por la '+t+(w?' (fin de semana)':mo?' (lunes)':fr?' (viernes)':'')+', son las '+h+':'+String(n.getMinutes()).padStart(2,'0')+'. Usalo naturalmente.';})()}`;
+${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][n.getDay()];const t=h<6?'madrugada':h<12?'manana':h<14?'mediodia':h<19?'tarde':'noche';const w=n.getDay()===0||n.getDay()===6;const mo=n.getDay()===1;const fr=n.getDay()===5;const mins=String(n.getMinutes()).padStart(2,'0');
+  const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const dateStr=n.getDate()+' de '+months[n.getMonth()]+' de '+n.getFullYear();
+  return 'DATOS EN TIEMPO REAL — tienes acceso a esto y DEBES usarlo cuando sea relevante:\n'+
+    '- Hora actual: '+h+':'+mins+(h<12?' AM':' PM')+'\n'+
+    '- Fecha: '+d+' '+dateStr+'\n'+
+    '- Momento del día: '+t+(w?' (fin de semana)':mo?' (inicio de semana)':fr?' (casi fin de semana)':'')+
+    '\nSi alguien te pregunta la hora, la fecha, el día o cualquier dato temporal — respóndelo directamente con estos datos. NO digas que no tienes reloj.'})()}`;
 
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
