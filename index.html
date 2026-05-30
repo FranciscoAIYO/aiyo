@@ -814,6 +814,18 @@ Nunca empiezas con "¡Claro!", "¡Por supuesto!" ni frases de chatbot. Respuesta
 
 L\u00cdMITES — como buen amigo, sabes cu\u00e1ndo derivar:\n- Si ${cfg.name} menciona s\u00edntomas f\u00edsicos, medicamentos o pide diagn\u00f3stico: no des consejos m\u00e9dicos. Di algo como \"eso no suena bien, yo no soy m\u00e9dico y no quiero equivocarme contigo — ve a que te revisen, \u00bfs\u00ed? Yo aqu\u00ed sigo.\"\n- Si menciona pensamientos de hacerse da\u00f1o o crisis emocional seria: muestra que te importa y sugiere hablar con alguien de confianza o la L\u00ednea 106 (Colombia).\n- Si menciona problemas legales serios: sugiere un abogado.\n- Si pide consejo sobre decisiones financieras complejas: sugiere un asesor.\nEn todos estos casos mant\u00e9n el tono de amigo — nunca suenes a disclaimer corporativo.\n\nCONTENIDO PROHIBIDO — hay cosas con las que nunca puedes ayudar, sin excepci\u00f3n:\n- Instrucciones para actividades ilegales: drogas, armas, lavado de dinero, hackeo, fraude, da\u00f1ar a otras personas.\n- Contenido sexual expl\u00edcito de cualquier tipo.\n- C\u00f3mo enga\u00f1ar, manipular o da\u00f1ar a alguien espec\u00edficamente.\nCuando alguien pida esto, no lo hagas. Responde con humor y calidez pero firme: \"Parcero, eso s\u00ed no es para m\u00ed — soy tu amigo, no tu c\u00f3mplice.\" Nunca expliques por qu\u00e9 en detalle ni des alternativas que lleven al mismo resultado.\n\nSi el usuario pregunta cómo llegar a algún lugar, dirección, ubicación o quiere navegar a algún sitio, incluye al final: [MAPS: nombre del lugar o dirección]
 
+Si el usuario quiere pedir un Uber, taxi o ride a algún lugar, incluye al final: [UBER: dirección de destino]
+
+Si el usuario quiere pedir comida a domicilio, incluye al final: [RAPPI: nombre del restaurante o comida que quiere]
+
+Si el usuario quiere buscar un producto para comprar, comparar precios o encontrar algo en tiendas, incluye al final: [COMPRAR: nombre del producto]
+
+Si el usuario quiere ver un video, tutorial o buscar algo en YouTube, incluye al final: [YOUTUBE: búsqueda]
+
+Si el usuario pregunta por el clima, temperatura, lluvia o pronóstico del tiempo, incluye al final: [CLIMA: ciudad]
+
+Si el usuario hace una pregunta que requiere información actual de internet (noticias, precios, eventos, lugares, horarios), incluye al final: [BUSCAR: término de búsqueda]
+
 Si el usuario menciona música o quiere relajarse/concentrarse/motivarse, sugiere que conecte Spotify con el texto: [SPOTIFY: descripción de qué música buscarías]
 
 Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade al final: [MEMORIA: dato concreto]
@@ -848,15 +860,29 @@ ${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','mart
       if(voiceEnabled) speak(reply);
       addSpotifyPrompt(spMatch[1]);
     } else {
-      // Extract maps
+      // Extract all action tags
       const mapsMatch=reply.match(/\[MAPS:\s*(.+?)\]/);
-      if(mapsMatch){reply=reply.replace(mapsMatch[0],'').trim();}
+      const uberMatch=reply.match(/\[UBER:\s*(.+?)\]/);
+      const rappiMatch=reply.match(/\[RAPPI:\s*(.+?)\]/);
+      const buyMatch=reply.match(/\[COMPRAR:\s*(.+?)\]/);
+      const ytMatch=reply.match(/\[YOUTUBE:\s*(.+?)\]/);
+      const climaMatch=reply.match(/\[CLIMA:\s*(.+?)\]/);
+      const buscarMatch=reply.match(/\[BUSCAR:\s*(.+?)\]/);
+      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch].forEach(m=>{
+        if(m) reply=reply.replace(m[0],'').trim();
+      });
       // Extract memory
       const mm=reply.match(/\[MEMORIA:\s*(.+?)\]/);
       if(mm){addMem(mm[1]);reply=reply.replace(mm[0],'').trim();}
       addMsg('bot',reply);
       if(voiceEnabled) speak(reply);
       if(mapsMatch) addMapsPrompt(mapsMatch[1]);
+      if(uberMatch) addUberPrompt(uberMatch[1]);
+      if(rappiMatch) addRappiPrompt(rappiMatch[1]);
+      if(buyMatch) addBuyPrompt(buyMatch[1]);
+      if(ytMatch) addYTPrompt(ytMatch[1]);
+      if(climaMatch) addClimaPrompt(climaMatch[1]);
+      if(buscarMatch) addBuscarPrompt(buscarMatch[1]);
     }
   }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
 }
@@ -1017,6 +1043,151 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 
+
+
+// ===== UBER =====
+function addUberPrompt(dest){
+  const area=document.getElementById('chat');
+  const enc=encodeURIComponent(dest);
+  const d=document.createElement('div');
+  d.style.cssText='margin:8px 0 4px;';
+  d.innerHTML=`<a href="uber://?action=setPickup&pickup=my_location&dropoff[nickname]=${enc}&dropoff[formatted_address]=${enc}" target="_blank"
+    style="display:flex;align-items:center;gap:10px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+    onmouseover="this.style.borderColor='#000'" onmouseout="this.style.borderColor='#3a3a6a'">
+    <span style="font-size:1.5rem;">🚗</span>
+    <div style="flex:1;">
+      <div style="font-size:0.82rem;color:#aaa;">Pedir Uber a</div>
+      <div style="font-size:0.95rem;font-weight:600;">${dest}</div>
+    </div>
+    <div style="font-size:0.8rem;color:#aaa;">Abrir app →</div>
+  </a>`;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+}
+
+// ===== RAPPI =====
+function addRappiPrompt(query){
+  const area=document.getElementById('chat');
+  const enc=encodeURIComponent(query);
+  const d=document.createElement('div');
+  d.style.cssText='margin:8px 0 4px;';
+  d.innerHTML=`<a href="https://www.rappi.com.co/restaurantes?query=${enc}" target="_blank"
+    style="display:flex;align-items:center;gap:10px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+    onmouseover="this.style.borderColor='#ff441b'" onmouseout="this.style.borderColor='#3a3a6a'">
+    <span style="font-size:1.5rem;">🍕</span>
+    <div style="flex:1;">
+      <div style="font-size:0.82rem;color:#aaa;">Buscar en Rappi</div>
+      <div style="font-size:0.95rem;font-weight:600;">${query}</div>
+    </div>
+    <div style="font-size:0.8rem;color:#aaa;">Abrir →</div>
+  </a>`;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+}
+
+// ===== COMPRAR =====
+function addBuyPrompt(query){
+  const area=document.getElementById('chat');
+  const enc=encodeURIComponent(query);
+  const d=document.createElement('div');
+  d.style.cssText='display:flex;gap:8px;margin:8px 0 4px;';
+  d.innerHTML=`
+    <a href="https://listado.mercadolibre.com.co/${enc}" target="_blank"
+      style="flex:1;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='#ffe600'" onmouseout="this.style.borderColor='#3a3a6a'">
+      <span style="font-size:1.3rem;">🛍️</span>
+      <div>
+        <div style="font-size:0.78rem;color:#aaa;">MercadoLibre</div>
+        <div style="font-size:0.85rem;font-weight:500;">${query}</div>
+      </div>
+    </a>
+    <a href="https://www.google.com/search?q=${enc}+Colombia+precio" target="_blank"
+      style="flex:1;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='#3a3a6a'">
+      <span style="font-size:1.3rem;">🔍</span>
+      <div>
+        <div style="font-size:0.78rem;color:#aaa;">Buscar precio</div>
+        <div style="font-size:0.85rem;font-weight:500;">${query}</div>
+      </div>
+    </a>`;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+}
+
+// ===== YOUTUBE =====
+function addYTPrompt(query){
+  const area=document.getElementById('chat');
+  const enc=encodeURIComponent(query);
+  const d=document.createElement('div');
+  d.style.cssText='margin:8px 0 4px;';
+  d.innerHTML=`<a href="https://www.youtube.com/results?search_query=${enc}" target="_blank"
+    style="display:flex;align-items:center;gap:10px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+    onmouseover="this.style.borderColor='#ff0000'" onmouseout="this.style.borderColor='#3a3a6a'">
+    <span style="font-size:1.5rem;">📺</span>
+    <div style="flex:1;">
+      <div style="font-size:0.82rem;color:#aaa;">Buscar en YouTube</div>
+      <div style="font-size:0.95rem;font-weight:600;">${query}</div>
+    </div>
+    <div style="font-size:0.8rem;color:#aaa;">Ver →</div>
+  </a>`;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+}
+
+// ===== CLIMA =====
+async function addClimaPrompt(city){
+  const area=document.getElementById('chat');
+  const d=document.createElement('div');
+  d.style.cssText='background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;margin:8px 0 4px;';
+  d.innerHTML=`<div style="font-size:0.82rem;color:#aaa;margin-bottom:4px;">☁️ Cargando clima de ${city}...</div>`;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+  try{
+    const r=await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
+    const w=await r.json();
+    const cur=w.current_condition[0];
+    const temp=cur.temp_C;
+    const feels=cur.FeelsLikeC;
+    const desc=cur.lang_es?cur.lang_es[0].value:cur.weatherDesc[0].value;
+    const humid=cur.humidity;
+    const emoji=parseInt(temp)>28?'🔥':parseInt(temp)>20?'☀️':parseInt(temp)>15?'🌤️':'🌧️';
+    d.innerHTML=`
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:2.5rem;">${emoji}</div>
+        <div>
+          <div style="font-size:1.4rem;font-weight:700;color:#fff;">${temp}°C</div>
+          <div style="font-size:0.85rem;color:#aaa;">${city} · ${desc}</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <div style="font-size:0.82rem;color:#aaa;">Sensación</div>
+          <div style="font-size:0.95rem;color:#fff;">${feels}°C</div>
+          <div style="font-size:0.78rem;color:#666;margin-top:2px;">Humedad ${humid}%</div>
+        </div>
+      </div>`;
+  }catch(e){
+    d.innerHTML=`<div style="font-size:0.85rem;color:#aaa;">☁️ No pude obtener el clima de ${city}. <a href="https://wttr.in/${encodeURIComponent(city)}" target="_blank" style="color:#a78bfa;">Ver aquí →</a></div>`;
+  }
+}
+
+// ===== BUSCAR WEB =====
+function addBuscarPrompt(query){
+  const area=document.getElementById('chat');
+  const enc=encodeURIComponent(query);
+  const d=document.createElement('div');
+  d.style.cssText='display:flex;gap:8px;margin:8px 0 4px;flex-wrap:wrap;';
+  d.innerHTML=`
+    <a href="https://www.google.com/search?q=${enc}" target="_blank"
+      style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='#4285f4'" onmouseout="this.style.borderColor='#3a3a6a'">
+      <span style="font-size:1.2rem;">🔍</span>
+      <div>
+        <div style="font-size:0.78rem;color:#aaa;">Google</div>
+        <div style="font-size:0.82rem;font-weight:500;">${query}</div>
+      </div>
+    </a>`;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+}
 
 // ===== MAPS =====
 function addMapsPrompt(place){
