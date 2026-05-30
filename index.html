@@ -327,7 +327,26 @@ body::before{
   background:rgba(226,185,122,0.12);color:var(--gold);
   border:1px solid rgba(226,185,122,0.25);border-radius:50px;
   font-size:10px;font-weight:800;padding:2px 7px;margin-left:6px;vertical-align:middle}
-</style>
+
+    .onb-step { display:none; animation: fadeIn 0.3s ease; }
+    .onb-step.active { display:block; }
+    .onb-title { font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:8px;text-align:center; }
+    .onb-chip {
+      background:#1a1a35;border:1px solid #3a3a6a;color:#ddd;
+      padding:8px 16px;border-radius:20px;cursor:pointer;font-size:0.88rem;
+      transition:all 0.2s;
+    }
+    .onb-chip:hover, .onb-chip.selected { background:#7c3aed;border-color:#7c3aed;color:#fff; }
+    .onb-persona-btn {
+      display:flex;align-items:center;gap:14px;
+      background:#1a1a35;border:1px solid #3a3a6a;
+      padding:14px 16px;border-radius:14px;cursor:pointer;
+      text-align:left;width:100%;transition:all 0.2s;
+    }
+    .onb-persona-btn:hover { background:#2a1a55;border-color:#7c3aed; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  </style>
 </head>
 <body>
 
@@ -407,26 +426,91 @@ body::before{
 
 <!-- SETUP -->
 <div class="screen" id="setup">
-  <div class="setup-wrap">
-    <div class="setup-top">
-      <h2>Crea tu AiYo 🌟</h2>
-      <p>Tu amigo de vida. Aprende de ti desde el primer segundo.</p>
-    </div>
-    <div class="ssec"><label class="slabel">Tu nombre</label><input class="sinput" id="sName" placeholder="¿Cómo te llamas?" autocomplete="off"></div>
-    <div class="ssec"><label class="slabel">¿Cómo se llama tu AiYo?</label><input class="sinput" id="sAiName" placeholder="AiYo, George, Sofi, Migue..." autocomplete="off"></div>
-    <div class="ssec"><label class="slabel">Cuéntale algo de ti</label><textarea class="sinput" id="sBio" rows="3" placeholder="Edad, qué haces, qué te gusta, tus hijos, tu ciudad..."></textarea></div>
-    <div class="ssec">
-      <label class="slabel">API Key de Anthropic</label>
-      <div class="keyfield">
-        <input class="sinput" id="sKey" type="text" placeholder="sk-ant-api03-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="padding-right:44px">
-        <button class="keyeye" onclick="toggleKey()">👁️</button>
+  <div class="setup-wrap" style="max-width:480px;margin:0 auto;padding:24px 20px 100px;">
+
+    <!-- Paso 1: Nombre -->
+    <div class="onb-step active" id="step1">
+      <div class="being" style="margin:0 auto 20px;width:70px;height:70px;">
+        <div class="being-glow"></div>
+        <div class="being-body" style="width:70px;height:70px;">
+          <div class="being-face">
+            <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+            <div class="smile"></div>
+          </div>
+        </div>
       </div>
-      <p style="font-size:11px;color:var(--muted);margin-top:6px">Consíguela en console.anthropic.com → API Keys</p>
+      <div style="font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:8px;text-align:center;">¡Hola! Soy AiYo 👋</div>
+      <div style="color:#aaa;text-align:center;margin-bottom:28px;font-size:0.95rem;">Tu amigo de vida. ¿Cómo te llamas?</div>
+      <input class="sinput" id="sName" placeholder="Tu nombre..." autocomplete="off" 
+        style="font-size:1.1rem;text-align:center;"
+        onkeydown="if(event.key==='Enter') nextStep(2)">
+      <button class="sbtn" style="margin-top:16px;width:100%;" onclick="nextStep(2)">Seguir →</button>
     </div>
+
+    <!-- Paso 2: Nombre de AiYo -->
+    <div class="onb-step" id="step2">
+      <div style="font-size:2rem;text-align:center;margin-bottom:12px;">✨</div>
+      <div class="onb-title" id="step2Title">¡Qué nombre tan bueno!</div>
+      <div style="color:#aaa;text-align:center;margin-bottom:28px;font-size:0.95rem;">¿Cómo quieres llamarme a mí?</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:20px;">
+        <button class="onb-chip" onclick="selectAiName('AiYo')">AiYo</button>
+        <button class="onb-chip" onclick="selectAiName('George')">George</button>
+        <button class="onb-chip" onclick="selectAiName('Migue')">Migue</button>
+        <button class="onb-chip" onclick="selectAiName('Sofi')">Sofi</button>
+        <button class="onb-chip" onclick="selectAiName('Otro')">Otro nombre...</button>
+      </div>
+      <input class="sinput" id="sAiName" placeholder="O escribe uno..." autocomplete="off"
+        style="font-size:1.1rem;text-align:center;display:none;"
+        onkeydown="if(event.key==='Enter') nextStep(3)">
+      <button class="sbtn" style="margin-top:16px;width:100%;display:none;" id="step2btn" onclick="nextStep(3)">Seguir →</button>
+    </div>
+
+    <!-- Paso 3: Personalidad -->
+    <div class="onb-step" id="step3">
+      <div style="font-size:2rem;text-align:center;margin-bottom:12px;">🎭</div>
+      <div class="onb-title">¿Cómo soy contigo?</div>
+      <div style="color:#aaa;text-align:center;margin-bottom:24px;font-size:0.95rem;">Puedes cambiarlo cuando quieras</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button class="onb-persona-btn" onclick="selectPersona('best','El mejor amigo de todos 🤝','Contigo siempre')">
+          <span style="font-size:1.3rem;">🤝</span>
+          <div><div style="font-weight:600;color:#fff;">El mejor amigo</div><div style="font-size:0.82rem;color:#aaa;">Directo, cálido, siempre ahí</div></div>
+        </button>
+        <button class="onb-persona-btn" onclick="selectPersona('fun','El chistoso 😂','Siempre de buen humor')">
+          <span style="font-size:1.3rem;">😂</span>
+          <div><div style="font-weight:600;color:#fff;">El chistoso</div><div style="font-size:0.82rem;color:#aaa;">Humor, carcajadas, buena vibra</div></div>
+        </button>
+        <button class="onb-persona-btn" onclick="selectPersona('wise','El sabio 🦉','Consejos que valen oro')">
+          <span style="font-size:1.3rem;">🦉</span>
+          <div><div style="font-weight:600;color:#fff;">El sabio</div><div style="font-size:0.82rem;color:#aaa;">Profundo, reflexivo, pregunta bien</div></div>
+        </button>
+        <button class="onb-persona-btn" onclick="selectPersona('hype','El motivador 🔥','Tu mayor fanático')">
+          <span style="font-size:1.3rem;">🔥</span>
+          <div><div style="font-weight:600;color:#fff;">El motivador</div><div style="font-size:0.82rem;color:#aaa;">Energía, ganas, te hace creer</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Paso 4: Cuéntame algo (opcional) -->
+    <div class="onb-step" id="step4">
+      <div style="font-size:2rem;text-align:center;margin-bottom:12px;">🧠</div>
+      <div class="onb-title" id="step4Title">¡Ya casi estamos!</div>
+      <div style="color:#aaa;text-align:center;margin-bottom:20px;font-size:0.95rem;">¿Me cuentas algo de ti para conocerte mejor?<br><span style="font-size:0.82rem;opacity:0.6;">Opcional — puedes saltarte esto</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;">
+        <button class="onb-chip" onclick="addBioHint('Soy de Medellín')">📍 Medellín</button>
+        <button class="onb-chip" onclick="addBioHint('Tengo hijos')">👨‍👧 Tengo hijos</button>
+        <button class="onb-chip" onclick="addBioHint('Me gusta el fútbol')">⚽ Fútbol</button>
+        <button class="onb-chip" onclick="addBioHint('Me gusta la música')">🎵 Música</button>
+        <button class="onb-chip" onclick="addBioHint('Trabajo mucho')">💼 Trabajo mucho</button>
+        <button class="onb-chip" onclick="addBioHint('Me gusta viajar')">✈️ Viajero</button>
+      </div>
+      <textarea class="sinput" id="sBio" rows="3" placeholder="O cuéntame en tus palabras..."></textarea>
+      <button class="sbtn" style="margin-top:16px;width:100%;" onclick="finishSetup()">Conocer a mi AiYo ✨</button>
+      <button style="width:100%;margin-top:10px;background:none;border:none;color:#666;font-size:0.88rem;cursor:pointer;" onclick="finishSetup()">Saltar por ahora →</button>
+    </div>
+
   </div>
-  <div class="setup-foot">
-    <button class="sbtn" onclick="saveProfile()">Conocer a mi AiYo ✨</button>
-  </div>
+  <!-- Campo oculto para API key — se usa el key del sistema -->
+  <input type="hidden" id="sKey" value="">
 </div>
 
 <!-- APP -->
@@ -864,6 +948,78 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(ev==='SIGNED_IN'&&s&&!user){user=s.user;await loadUser();}
   });
 });
+
+
+// ===== NUEVO ONBOARDING =====
+function nextStep(n) {
+  if(n === 2) {
+    const name = document.getElementById('sName').value.trim();
+    if(!name){ document.getElementById('sName').focus(); return; }
+    document.getElementById('step2Title').textContent = '¡Hola ' + name + '! 👋';
+  }
+  document.querySelectorAll('.onb-step').forEach(s => s.classList.remove('active'));
+  const next = document.getElementById('step' + n);
+  if(next) next.classList.add('active');
+}
+
+function selectAiName(name) {
+  document.querySelectorAll('#step2 .onb-chip').forEach(c => c.classList.remove('selected'));
+  event.target.classList.add('selected');
+  const input = document.getElementById('sAiName');
+  const btn = document.getElementById('step2btn');
+  if(name === 'Otro') {
+    input.style.display = 'block';
+    btn.style.display = 'block';
+    input.focus();
+  } else {
+    input.style.display = 'none';
+    btn.style.display = 'none';
+    input.value = name;
+    setTimeout(() => nextStep(3), 300);
+  }
+}
+
+function selectPersona(key, mood, subtitle) {
+  document.querySelectorAll('.onb-persona-btn').forEach(b => b.style.borderColor = '#3a3a6a');
+  event.currentTarget.style.borderColor = '#7c3aed';
+  cfg.persona = key;
+  const userName = document.getElementById('sName').value.trim();
+  document.getElementById('step4Title').textContent = '¡Ya casi, ' + userName + '!';
+  setTimeout(() => nextStep(4), 300);
+}
+
+function addBioHint(hint) {
+  const bio = document.getElementById('sBio');
+  bio.value = bio.value ? bio.value + ', ' + hint : hint;
+  event.target.classList.add('selected');
+}
+
+function finishSetup() {
+  const name = document.getElementById('sName').value.trim() || 'amigo';
+  const aiName = document.getElementById('sAiName').value.trim() || 'AiYo';
+  const bio = document.getElementById('sBio').value.trim();
+  cfg.name = name;
+  cfg.aiName = aiName;
+  cfg.bio = bio;
+  cfg.key = cfg.key || '';
+  if(typeof saveProfile === 'function') saveProfile();
+  else {
+    localStorage.setItem('aiyo_cfg', JSON.stringify(cfg));
+    go('app');
+    setTimeout(() => sendFirstMessage(), 800);
+  }
+}
+
+function sendFirstMessage() {
+  const name = cfg.name || 'amigo';
+  const aiName = cfg.aiName || 'AiYo';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const firstMsg = greeting + ', ' + name + ' 👋 Soy ' + aiName + ', tu nuevo parcero de vida. Cuéntame — ¿cómo va el día?';
+  addMsg('bot', firstMsg);
+  if(typeof speak === 'function' && voiceEnabled) speak(firstMsg);
+}
+
 
 // ===== DISCLAIMER =====
 function goDisclaimer(){
