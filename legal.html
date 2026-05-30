@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AiYo — Términos y Privacidad</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d1a;
+    color: #e0e0f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    padding: 0 0 60px;
+  }
+  header {
+    background: #13132a;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2a2a4a;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header .logo { font-size: 1.4rem; font-weight: 700; color: #a78bfa; }
+  header .back { color: #a78bfa; text-decoration: none; font-size: 0.9rem; margin-left: auto; }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #2a2a4a;
+    background: #13132a;
+    position: sticky;
+    top: 61px;
+    z-index: 9;
+  }
+  .tab {
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    color: #888;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+  .content { display: none; padding: 28px 24px; max-width: 680px; margin: 0 auto; }
+  .content.active { display: block; }
+  h1 { font-size: 1.4rem; color: #fff; margin-bottom: 6px; }
+  .date { font-size: 0.82rem; color: #666; margin-bottom: 28px; }
+  h2 { font-size: 1rem; color: #a78bfa; margin: 28px 0 10px; font-weight: 600; }
+  p { color: #bbb; margin-bottom: 12px; }
+  ul { color: #bbb; padding-left: 20px; margin-bottom: 12px; }
+  ul li { margin-bottom: 6px; }
+  .highlight {
+    background: #1a1a35;
+    border-left: 3px solid #a78bfa;
+    padding: 14px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    color: #ddd;
+  }
+  .contact {
+    background: #1a1a35;
+    border-radius: 12px;
+    padding: 18px;
+    margin-top: 32px;
+    text-align: center;
+  }
+  .contact a { color: #a78bfa; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">AiYo</span>
+  <a href="/" class="back">← Volver a la app</a>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('terms')">Términos de uso</div>
+  <div class="tab" onclick="showTab('privacy')">Privacidad</div>
+</div>
+
+<!-- TÉRMINOS DE USO -->
+<div class="content active" id="terms">
+  <h1>Términos de uso</h1>
+  <div class="date">Última actualización: Mayo 2026</div>
+
+  <div class="highlight">
+    AiYo es un compañero de conversación basado en inteligencia artificial. Es un amigo digital — no un médico, abogado, terapeuta ni asesor financiero.
+  </div>
+
+  <h2>1. Quién puede usar AiYo</h2>
+  <p>AiYo está diseñado exclusivamente para personas mayores de 18 años. Si eres menor de edad, no debes usar esta aplicación. Al crear una cuenta, confirmas que tienes 18 años o más.</p>
+
+  <h2>2. Lo que AiYo es — y lo que no es</h2>
+  <p>AiYo es un compañero de conversación. Puede escucharte, acompañarte, darte ideas y hacer tu día más llevadero. Lo que AiYo <strong>no puede hacer</strong>:</p>
+  <ul>
+    <li>Darte diagnósticos médicos ni recomendarte medicamentos</li>
+    <li>Reemplazar atención psicológica o psiquiátrica profesional</li>
+    <li>Darte asesoría legal vinculante</li>
+    <li>Garantizar la exactitud de toda la información que comparte</li>
+  </ul>
+  <p>Cuando un tema requiere un profesional, AiYo te lo dirá. Eso es parte de ser un buen amigo.</p>
+
+  <h2>3. Uso responsable</h2>
+  <p>Al usar AiYo te comprometes a no utilizarlo para:</p>
+  <ul>
+    <li>Solicitar ayuda con actividades ilegales (drogas, armas, fraude, lavado de dinero u otras)</li>
+    <li>Generar contenido que dañe a otras personas</li>
+    <li>Acosar, amenazar o perjudicar a terceros</li>
+    <li>Cualquier actividad que viole las leyes de tu país</li>
+  </ul>
+  <p>Nos reservamos el derecho de suspender cuentas que violen estos términos, sin previo aviso.</p>
+
+  <h2>4. Limitación de responsabilidad</h2>
+  <p>AiYo se ofrece tal como está. No garantizamos que esté disponible en todo momento ni que todas las respuestas sean perfectas. Las decisiones que tomes basándote en conversaciones con AiYo son tu responsabilidad.</p>
+  <p>AiYo no es responsable por daños directos o indirectos derivados del uso de la aplicación.</p>
+
+  <h2>5. Cambios en los términos</h2>
+  <p>Podemos actualizar estos términos cuando sea necesario. Si hay cambios importantes, te avisaremos dentro de la app. Seguir usando AiYo después de un aviso implica que aceptas los nuevos términos.</p>
+
+  <div class="contact">
+    <p>¿Preguntas sobre los términos?</p>
+    <p><a href="mailto:hola@aiyo.app">hola@aiyo.app</a></p>
+  </div>
+</div>
+
+<!-- POLÍTICA DE PRIVACIDAD -->
+<div class="content" id="privacy">
+  <h1>Política de privacidad</h1>
+  <div class="date">Última actualización: Mayo 2026</div>
+
+  <div class="highlight">
+    Tu privacidad es importante. Esta política explica en lenguaje claro qué datos guardamos, para qué, y qué derechos tienes sobre ellos.
+  </div>
+
+  <h2>1. Qué información guardamos</h2>
+  <ul>
+    <li><strong>Tu cuenta:</strong> correo electrónico y contraseña (encriptada)</li>
+    <li><strong>Tu perfil:</strong> nombre, biografía e intereses que tú mismo compartes</li>
+    <li><strong>Conversaciones:</strong> los mensajes que intercambias con AiYo</li>
+    <li><strong>Memorias:</strong> datos que AiYo extrae de tus conversaciones para recordarte mejor</li>
+  </ul>
+
+  <h2>2. Para qué usamos tu información</h2>
+  <ul>
+    <li>Para que AiYo te recuerde entre sesiones y mejore contigo con el tiempo</li>
+    <li>Para mejorar la calidad de las respuestas de la app</li>
+    <li>Para mantener tu cuenta segura</li>
+  </ul>
+
+  <div class="highlight">
+    <strong>Lo que nunca hacemos:</strong> no vendemos tu información a terceros, no la compartimos con anunciantes, no la usamos para fines distintos a los descritos aquí.
+  </div>
+
+  <h2>3. Con quién compartimos datos</h2>
+  <p>Para funcionar, AiYo usa estos servicios externos de confianza:</p>
+  <ul>
+    <li><strong>Supabase</strong> — almacenamiento seguro de datos (supabase.com)</li>
+    <li><strong>Anthropic</strong> — el motor de IA que hace posible las conversaciones (anthropic.com)</li>
+    <li><strong>ElevenLabs</strong> — síntesis de voz, solo si activas la voz (elevenlabs.io)</li>
+  </ul>
+  <p>Cada uno de estos servicios tiene sus propias políticas de privacidad que te recomendamos revisar.</p>
+
+  <h2>4. Cuánto tiempo guardamos tus datos</h2>
+  <p>Guardamos tus datos mientras tengas una cuenta activa. Si eliminas tu cuenta, eliminamos tus datos en un plazo de 30 días.</p>
+
+  <h2>5. Tus derechos</h2>
+  <p>En cualquier momento puedes:</p>
+  <ul>
+    <li>Pedir una copia de todos tus datos</li>
+    <li>Pedir que corrijamos información incorrecta</li>
+    <li>Pedir que eliminemos tu cuenta y todos tus datos</li>
+  </ul>
+  <p>Solo escríbenos y lo gestionamos en menos de 72 horas.</p>
+
+  <h2>6. Seguridad</h2>
+  <p>Usamos encriptación en tránsito (HTTPS) y en reposo para proteger tu información. Ningún sistema es 100% infalible, pero tomamos la seguridad de tus datos muy en serio.</p>
+
+  <div class="contact">
+    <p>¿Quieres ver, modificar o eliminar tus datos?</p>
+    <p><a href="mailto:hola@aiyo.app">hola@aiyo.app</a></p>
+    <p style="font-size:0.82rem;color:#666;margin-top:8px;">Respondemos en menos de 72 horas</p>
+  </div>
+</div>
+
+<script>
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'terms') || (i === 1 && tab === 'privacy'));
+  });
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  document.getElementById(tab).classList.add('active');
+}
+</script>
+</body>
+</html>
