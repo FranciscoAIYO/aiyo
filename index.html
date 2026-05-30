@@ -768,7 +768,8 @@ Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade 
 
 ${cfg.bio?`Perfil de ${cfg.name}: ${cfg.bio}`:''}
 ${mems.length?`Recuerdas de ${cfg.name}: ${mems.slice(0,10).join(', ')}`:''}
-${mood?`Estado actual: ${mood}`:''}`;
+${mood?`Estado actual: ${mood}`:''}
+${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][n.getDay()];const t=h<6?'madrugada':h<12?'manana':h<14?'mediodia':h<19?'tarde':'noche';const w=n.getDay()===0||n.getDay()===6;const mo=n.getDay()===1;const fr=n.getDay()===5;return 'CONTEXTO: Es '+d+' por la '+t+(w?' (fin de semana)':mo?' (lunes)':fr?' (viernes)':'')+', son las '+h+':'+String(n.getMinutes()).padStart(2,'0')+'. Usalo naturalmente.';})()}`;
 
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
