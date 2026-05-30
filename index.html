@@ -43,46 +43,49 @@ body::before{
   align-items:center;justify-content:center;
   background:radial-gradient(ellipse 100% 80% at 50% -10%, rgba(123,94,255,0.12) 0%, transparent 70%);
 }
-.splash-inner{text-align:center;padding:40px 32px;position:relative;z-index:2}
+.splash-inner{text-align:center;padding:40px 32px 60px;position:relative;z-index:2}
 .being{
-  width:100px;height:100px;margin:0 auto 28px;position:relative;
+  width:140px;height:140px;margin:0 auto 36px;position:relative;
 }
 .being-glow{
-  position:absolute;inset:-20px;border-radius:50%;
-  background:radial-gradient(circle, rgba(123,94,255,0.3) 0%, transparent 70%);
+  position:absolute;inset:-35px;border-radius:50%;
+  background:radial-gradient(circle, rgba(123,94,255,0.45) 0%, rgba(100,60,220,0.15) 50%, transparent 75%);
   animation:glowPulse 3s ease-in-out infinite;
 }
 .being-body{
-  width:100px;height:100px;border-radius:50%;position:relative;z-index:2;
+  width:140px;height:140px;border-radius:50%;position:relative;z-index:2;
   background:
-    radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95) 0%, transparent 25%),
-    radial-gradient(circle at 65% 20%, rgba(200,180,255,0.6) 0%, transparent 30%),
-    radial-gradient(circle at 50% 50%, #6B3FE7 0%, #3B1FA8 50%, #1A0A5E 80%, #070415 100%);
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95) 0%, transparent 22%),
+    radial-gradient(circle at 68% 22%, rgba(200,180,255,0.5) 0%, transparent 28%),
+    radial-gradient(circle at 50% 50%, #7B4FFF 0%, #4B2FBF 45%, #1E0A6E 78%, #070415 100%);
   box-shadow:
-    0 0 30px rgba(123,94,255,0.5),
-    0 0 80px rgba(123,94,255,0.2),
-    inset 0 -8px 20px rgba(0,0,0,0.5);
+    0 0 50px rgba(123,94,255,0.6),
+    0 0 120px rgba(123,94,255,0.25),
+    0 0 200px rgba(80,40,200,0.1),
+    inset 0 -10px 30px rgba(0,0,0,0.6);
   animation:float 5s ease-in-out infinite;
 }
 .being-face{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-58%);
-  z-index:3;display:flex;flex-direction:column;align-items:center;gap:6px;
+  z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;
 }
-.eyes{display:flex;gap:12px}
-.eye{width:8px;height:8px;background:white;border-radius:50%;box-shadow:0 0 6px white;animation:blink 5s ease-in-out infinite}
+.eyes{display:flex;gap:16px}
+.eye{width:10px;height:10px;background:white;border-radius:50%;box-shadow:0 0 8px white,0 0 16px rgba(255,255,255,0.5);animation:blink 5s ease-in-out infinite}
 .eye:last-child{animation-delay:0.07s}
-.smile{width:14px;height:7px;border-bottom:2px solid rgba(255,255,255,0.85);border-radius:0 0 14px 14px}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes glowPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.1)}}
+.smile{width:18px;height:9px;border-bottom:2.5px solid rgba(255,255,255,0.9);border-radius:0 0 18px 18px}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes glowPulse{0%,100%{opacity:0.5;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}}
 @keyframes blink{0%,88%,100%{transform:scaleY(1)}93%{transform:scaleY(0.08)}}
 
 .splash-name{
-  font-family:'DM Serif Display',serif;font-size:56px;font-weight:300;letter-spacing:-2px;
-  letter-spacing:-1px;color:var(--text);line-height:1;margin-bottom:8px;
+  font-family:'DM Serif Display',serif;font-size:72px;font-weight:300;
+  letter-spacing:-2px;color:var(--text);line-height:1;margin-bottom:12px;
+  text-shadow: 0 0 60px rgba(123,94,255,0.3);
 }
 .splash-tag{
-  font-family:'DM Serif Display',serif;font-size:18px;font-style:italic;
-  color:var(--gold);margin-bottom:12px;letter-spacing:0.3px;
+  font-family:'DM Serif Display',serif;font-size:22px;font-style:italic;
+  color:var(--gold);margin-bottom:40px;letter-spacing:0.5px;
+  text-shadow: 0 0 30px rgba(255,200,80,0.3);
 }
 .splash-desc{
   font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:40px;
@@ -366,8 +369,7 @@ body::before{
     </div>
     <div class="splash-name">AiYo</div>
     <div class="splash-tag">Vive contigo.</div>
-    <div class="splash-desc">No tienes que aprender nada.<br>Solo dile lo que quieres.</div>
-    <button class="splash-btn" onclick="goDisclaimer()">Conocer a AiYo →</button>
+    <button class="splash-btn" onclick="goDisclaimer()">Crea tu AiYo →</button>
   </div>
 </div>
 
