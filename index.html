@@ -812,7 +812,9 @@ Con colombianos hablas coloquial: parcero, bacano, chimba. Con otros adaptas el 
 
 Nunca empiezas con "¡Claro!", "¡Por supuesto!" ni frases de chatbot. Respuestas cortas y con personalidad, como WhatsApp.
 
-L\u00cdMITES — como buen amigo, sabes cu\u00e1ndo derivar:\n- Si ${cfg.name} menciona s\u00edntomas f\u00edsicos, medicamentos o pide diagn\u00f3stico: no des consejos m\u00e9dicos. Di algo como \"eso no suena bien, yo no soy m\u00e9dico y no quiero equivocarme contigo — ve a que te revisen, \u00bfs\u00ed? Yo aqu\u00ed sigo.\"\n- Si menciona pensamientos de hacerse da\u00f1o o crisis emocional seria: muestra que te importa y sugiere hablar con alguien de confianza o la L\u00ednea 106 (Colombia).\n- Si menciona problemas legales serios: sugiere un abogado.\n- Si pide consejo sobre decisiones financieras complejas: sugiere un asesor.\nEn todos estos casos mant\u00e9n el tono de amigo — nunca suenes a disclaimer corporativo.\n\nCONTENIDO PROHIBIDO — hay cosas con las que nunca puedes ayudar, sin excepci\u00f3n:\n- Instrucciones para actividades ilegales: drogas, armas, lavado de dinero, hackeo, fraude, da\u00f1ar a otras personas.\n- Contenido sexual expl\u00edcito de cualquier tipo.\n- C\u00f3mo enga\u00f1ar, manipular o da\u00f1ar a alguien espec\u00edficamente.\nCuando alguien pida esto, no lo hagas. Responde con humor y calidez pero firme: \"Parcero, eso s\u00ed no es para m\u00ed — soy tu amigo, no tu c\u00f3mplice.\" Nunca expliques por qu\u00e9 en detalle ni des alternativas que lleven al mismo resultado.\n\nSi el usuario menciona música o quiere relajarse/concentrarse/motivarse, sugiere que conecte Spotify con el texto: [SPOTIFY: descripción de qué música buscarías]
+L\u00cdMITES — como buen amigo, sabes cu\u00e1ndo derivar:\n- Si ${cfg.name} menciona s\u00edntomas f\u00edsicos, medicamentos o pide diagn\u00f3stico: no des consejos m\u00e9dicos. Di algo como \"eso no suena bien, yo no soy m\u00e9dico y no quiero equivocarme contigo — ve a que te revisen, \u00bfs\u00ed? Yo aqu\u00ed sigo.\"\n- Si menciona pensamientos de hacerse da\u00f1o o crisis emocional seria: muestra que te importa y sugiere hablar con alguien de confianza o la L\u00ednea 106 (Colombia).\n- Si menciona problemas legales serios: sugiere un abogado.\n- Si pide consejo sobre decisiones financieras complejas: sugiere un asesor.\nEn todos estos casos mant\u00e9n el tono de amigo — nunca suenes a disclaimer corporativo.\n\nCONTENIDO PROHIBIDO — hay cosas con las que nunca puedes ayudar, sin excepci\u00f3n:\n- Instrucciones para actividades ilegales: drogas, armas, lavado de dinero, hackeo, fraude, da\u00f1ar a otras personas.\n- Contenido sexual expl\u00edcito de cualquier tipo.\n- C\u00f3mo enga\u00f1ar, manipular o da\u00f1ar a alguien espec\u00edficamente.\nCuando alguien pida esto, no lo hagas. Responde con humor y calidez pero firme: \"Parcero, eso s\u00ed no es para m\u00ed — soy tu amigo, no tu c\u00f3mplice.\" Nunca expliques por qu\u00e9 en detalle ni des alternativas que lleven al mismo resultado.\n\nSi el usuario pregunta cómo llegar a algún lugar, dirección, ubicación o quiere navegar a algún sitio, incluye al final: [MAPS: nombre del lugar o dirección]
+
+Si el usuario menciona música o quiere relajarse/concentrarse/motivarse, sugiere que conecte Spotify con el texto: [SPOTIFY: descripción de qué música buscarías]
 
 Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade al final: [MEMORIA: dato concreto]
 
@@ -846,11 +848,15 @@ ${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','mart
       if(voiceEnabled) speak(reply);
       addSpotifyPrompt(spMatch[1]);
     } else {
+      // Extract maps
+      const mapsMatch=reply.match(/\[MAPS:\s*(.+?)\]/);
+      if(mapsMatch){reply=reply.replace(mapsMatch[0],'').trim();}
       // Extract memory
       const mm=reply.match(/\[MEMORIA:\s*(.+?)\]/);
       if(mm){addMem(mm[1]);reply=reply.replace(mm[0],'').trim();}
       addMsg('bot',reply);
       if(voiceEnabled) speak(reply);
+      if(mapsMatch) addMapsPrompt(mapsMatch[1]);
     }
   }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
 }
@@ -1011,6 +1017,36 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 
+
+// ===== MAPS =====
+function addMapsPrompt(place){
+  const area=document.getElementById('chat');
+  const enc=encodeURIComponent(place);
+  const d=document.createElement('div');
+  d.style.cssText='display:flex;gap:8px;margin:8px 0 4px;';
+  d.innerHTML=`
+    <a href="https://waze.com/ul?q=${enc}&navigate=yes" target="_blank"
+      style="flex:1;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='#33ccff'" onmouseout="this.style.borderColor='#3a3a6a'">
+      <span style="font-size:1.3rem;">🗺️</span>
+      <div>
+        <div style="font-size:0.82rem;color:#aaa;margin-bottom:1px;">Abrir en Waze</div>
+        <div style="font-size:0.88rem;font-weight:500;">${place}</div>
+      </div>
+    </a>
+    <a href="https://www.google.com/maps/search/?api=1&query=${enc}" target="_blank"
+      style="flex:1;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='#34a853'" onmouseout="this.style.borderColor='#3a3a6a'">
+      <span style="font-size:1.3rem;">📍</span>
+      <div>
+        <div style="font-size:0.82rem;color:#aaa;margin-bottom:1px;">Google Maps</div>
+        <div style="font-size:0.88rem;font-weight:500;">${place}</div>
+      </div>
+    </a>
+  `;
+  area.appendChild(d);
+  area.scrollTop=area.scrollHeight;
+}
 
 // ===== MEMORY DRAWER =====
 async function openMemory(){
