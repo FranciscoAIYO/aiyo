@@ -496,6 +496,38 @@ body::before{
       </div>
     </div>
 
+    <!-- Paso 3b: Voz -->
+    <div class="onb-step" id="step3b">
+      <div style="font-size:2rem;text-align:center;margin-bottom:12px;">🎙️</div>
+      <div class="onb-title">¿Cómo quieres que suene?</div>
+      <div style="color:#aaa;text-align:center;margin-bottom:24px;font-size:0.95rem;">Elige la voz de tu AiYo</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button class="onb-persona-btn" id="voiceMaleBtn" onclick="selectVoice('male','9ZVfdvBemUaGEWZgCiv0')">
+          <span style="font-size:1.5rem;">👨</span>
+          <div style="flex:1;">
+            <div style="font-weight:600;color:#fff;">Masculina</div>
+            <div style="font-size:0.82rem;color:#aaa;">Cálida y cercana</div>
+          </div>
+          <button onclick="event.stopPropagation();previewVoice('9ZVfdvBemUaGEWZgCiv0','Hola! Soy AiYo, tu nuevo parcero de vida.')" 
+            style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">
+            ▶ Escuchar
+          </button>
+        </button>
+        <button class="onb-persona-btn" id="voiceFemaleBtn" onclick="selectVoice('female','YM9MbhkdpZ8JR7EP49hA')">
+          <span style="font-size:1.5rem;">👩</span>
+          <div style="flex:1;">
+            <div style="font-weight:600;color:#fff;">Femenina</div>
+            <div style="font-size:0.82rem;color:#aaa;">Cálida y expresiva</div>
+          </div>
+          <button onclick="event.stopPropagation();previewVoice('YM9MbhkdpZ8JR7EP49hA','Hola! Soy AiYo, tu nueva compañera de vida.')"
+            style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">
+            ▶ Escuchar
+          </button>
+        </button>
+      </div>
+      <button class="sbtn" style="margin-top:20px;width:100%;opacity:0.4;pointer-events:none;" id="voiceNextBtn" onclick="nextStep(4)">Seguir →</button>
+    </div>
+
     <!-- Paso 4: Cuéntame algo (opcional) -->
     <div class="onb-step" id="step4">
       <div style="font-size:2rem;text-align:center;margin-bottom:12px;">🧠</div>
@@ -973,7 +1005,7 @@ let audioQueue=[], isSpeaking=false;
 async function speak(text){
   if(!voiceEnabled) return;
   const ELEVEN_KEY=['sk_760494e67ffc0f295','d8602844556eb2ca112f73cc72a4a80'].join('');
-  const VOICE_ID='tomkxGQGz4b1kE0EM722';
+  const VOICE_ID=cfg.voiceId||'9ZVfdvBemUaGEWZgCiv0';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
     .replace(/\[.*?\]/g,'')
@@ -1342,6 +1374,34 @@ async function deleteMemory(id){
 
 
 // ===== NUEVO ONBOARDING =====
+
+// ===== VOZ ONBOARDING =====
+function selectVoice(gender, voiceId){
+  cfg.voiceId = voiceId;
+  cfg.voiceGender = gender;
+  document.querySelectorAll('#step3b .onb-persona-btn').forEach(b=>b.style.borderColor='#3a3a6a');
+  const btn = gender==='male' ? document.getElementById('voiceMaleBtn') : document.getElementById('voiceFemaleBtn');
+  if(btn) btn.style.borderColor='#7c3aed';
+  const nextBtn = document.getElementById('voiceNextBtn');
+  if(nextBtn){ nextBtn.style.opacity='1'; nextBtn.style.pointerEvents='auto'; }
+}
+
+async function previewVoice(voiceId, text){
+  const K=['sk_760494e67ffc0f295','d8602844556eb2ca112f73cc72a4a80'].join('');
+  try{
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','xi-api-key':K},
+      body:JSON.stringify({text,model_id:'eleven_turbo_v2_5',voice_settings:{stability:0.5,similarity_boost:0.8}})
+    });
+    if(r.ok){
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+      new Audio(url).play();
+    }
+  }catch(e){console.log('preview error',e);}
+}
+
 function nextStep(n) {
   if(n === 2) {
     const name = document.getElementById('sName').value.trim();
@@ -1376,7 +1436,7 @@ function selectPersona(key, mood, subtitle) {
   cfg.persona = key;
   const userName = document.getElementById('sName').value.trim();
   document.getElementById('step4Title').textContent = '¡Ya casi, ' + userName + '!';
-  setTimeout(() => nextStep(4), 300);
+  setTimeout(() => nextStep('3b'), 300);
 }
 
 function addBioHint(hint) {
@@ -1392,6 +1452,7 @@ function finishSetup() {
   cfg.name = name;
   cfg.aiName = aiName;
   cfg.bio = bio;
+  if(!cfg.voiceId) cfg.voiceId = '9ZVfdvBemUaGEWZgCiv0';
   cfg.key = cfg.key || ['sk-ant-api0','3-TlA913gSQ0','3X_4x-SnLsNB-78eZYUt15Vb7_EPyeg','Uk5aWytEOMluNwQ4sYNTcTOlnbDl-S3qC3xSUKheA4zwg-z5aXcAAA'].join('');
   if(typeof saveProfile === 'function') saveProfile();
   else {
