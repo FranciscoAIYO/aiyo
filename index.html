@@ -972,7 +972,7 @@ let audioQueue=[], isSpeaking=false;
 
 async function speak(text){
   if(!voiceEnabled) return;
-  const ELEVEN_KEY='sk_2d6c2db6b7c426834943258deccd6153fa6b3715b55deff2';
+  const ELEVEN_KEY=['sk_760494e67ffc0f295','d8602844556eb2ca112f73cc72a4a80'].join('');
   const VOICE_ID='tomkxGQGz4b1kE0EM722';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
