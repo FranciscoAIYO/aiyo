@@ -565,6 +565,7 @@ body::before{
       <div class="hbtn" id="voiceToggle" onclick="toggleVoice()">🔊</div>
       <div class="hbtn" onclick="openMood()">💭</div>
       <div class="hbtn" onclick="openMemory()" title="Lo que recuerdo de ti">🧠</div>
+      <div class="hbtn" onclick="openVoicePicker()" title="Cambiar voz">🎙️</div>
       <div class="hbtn" onclick="openFeedback()" title="Dar feedback">💬</div>
       <div class="hbtn" onclick="doLogout()">↪</div>
     </div>
@@ -1270,6 +1271,32 @@ function addMapsPrompt(place){
   area.scrollTop=area.scrollHeight;
 }
 
+
+
+// ===== VOICE PICKER =====
+function openVoicePicker(){
+  const drawer = document.getElementById('voicePickerDrawer');
+  drawer.style.display='block';
+  document.body.style.overflow='hidden';
+  // Marcar la voz actual
+  const cur = cfg.voiceId || '9ZVfdvBemUaGEWZgCiv0';
+  document.getElementById('vpMaleBtn').style.borderColor = cur==='9ZVfdvBemUaGEWZgCiv0' ? '#7c3aed' : '#3a3a6a';
+  document.getElementById('vpFemaleBtn').style.borderColor = cur==='YM9MbhkdpZ8JR7EP49hA' ? '#7c3aed' : '#3a3a6a';
+  document.getElementById('vpSaved').style.display='none';
+}
+function closeVoicePicker(){
+  document.getElementById('voicePickerDrawer').style.display='none';
+  document.body.style.overflow='';
+}
+function pickVoice(gender, voiceId){
+  cfg.voiceId = voiceId;
+  cfg.voiceGender = gender;
+  localStorage.setItem('aiyo_cfg', JSON.stringify(cfg));
+  document.getElementById('vpMaleBtn').style.borderColor = gender==='male' ? '#7c3aed' : '#3a3a6a';
+  document.getElementById('vpFemaleBtn').style.borderColor = gender==='female' ? '#7c3aed' : '#3a3a6a';
+  document.getElementById('vpSaved').style.display='block';
+  setTimeout(closeVoicePicker, 1200);
+}
 
 // ===== FEEDBACK =====
 let fbRating=0,fbPros=[],fbCons=[];
