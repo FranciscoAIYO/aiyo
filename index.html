@@ -1537,5 +1537,43 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+
+<!-- VOICE PICKER DRAWER -->
+<div id="voicePickerDrawer" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);" onclick="if(event.target===this)closeVoicePicker()">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#0f0f22;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
+    <div style="width:40px;height:4px;background:#333;border-radius:2px;margin:0 auto 20px;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <div style="font-size:1.1rem;font-weight:600;color:#fff;">Voz de AiYo 🎙️</div>
+        <div style="font-size:0.8rem;color:#666;margin-top:2px;">Escucha y elige la que más te guste</div>
+      </div>
+      <div onclick="closeVoicePicker()" style="width:32px;height:32px;background:#1a1a35;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#aaa;">✕</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div id="vpMaleBtn" onclick="pickVoice('male','9ZVfdvBemUaGEWZgCiv0')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.8rem;">👨</span>
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#fff;">Masculina</div>
+          <div style="font-size:0.82rem;color:#aaa;">Cálida y cercana</div>
+        </div>
+        <button onclick="event.stopPropagation();previewVoice('9ZVfdvBemUaGEWZgCiv0','Hola parcero! Soy AiYo, tu amigo de vida.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.85rem;">▶ Escuchar</button>
+      </div>
+      <div id="vpFemaleBtn" onclick="pickVoice('female','YM9MbhkdpZ8JR7EP49hA')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.8rem;">👩</span>
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#fff;">Femenina</div>
+          <div style="font-size:0.82rem;color:#aaa;">Cálida y expresiva</div>
+        </div>
+        <button onclick="event.stopPropagation();previewVoice('YM9MbhkdpZ8JR7EP49hA','Hola! Soy AiYo, tu amiga de vida. Aquí para acompañarte siempre.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.85rem;">▶ Escuchar</button>
+      </div>
+    </div>
+    <div id="vpSaved" style="display:none;text-align:center;margin-top:16px;color:#a78bfa;font-size:0.88rem;">✅ Voz actualizada</div>
+  </div>
+</div>
+
 </body>
 </html>
