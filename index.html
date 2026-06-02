@@ -1171,7 +1171,7 @@ function closeFinance(e){
 function finTab(tab){
   finTabActive = tab;
   document.querySelectorAll('.fin-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['resumen','gastos','ingresos','pyg'][i]===tab);
+    t.classList.toggle('active', ['resumen','gastos','ingresos','pyg','presupuesto'][i]===tab);
   });
   renderFinTab(tab);
 }
@@ -1202,6 +1202,7 @@ async function renderFinTab(tab){
   if(tab==='gastos')  body.innerHTML = renderGastos(txs||[], budgets||[]);
   if(tab==='ingresos') body.innerHTML = renderIngresos(incs||[]);
   if(tab==='pyg')     body.innerHTML = await renderPYG(anio);
+  if(tab==='presupuesto') body.innerHTML = await renderPresupuesto();
 }
 
 function fmt(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n); }
@@ -1293,6 +1294,84 @@ function renderIngresos(incs){
     <button class="fin-add-btn" onclick="addIncome()">+ Registrar ingreso</button>
   </div>`;
   return html;
+}
+
+async function renderPresupuesto(){
+  const now = new Date();
+  const anio = now.getFullYear();
+  const {data:budgets} = await sb.from('budgets').select('*').eq('user_id',user.id).eq('year',anio);
+  const bMap = {};
+  (budgets||[]).forEach(b=>{ bMap[b.category_id]=b; });
+
+  const rows = CATS.map(cat=>{
+    const val = bMap[cat.id] ? Number(bMap[cat.id].amount) : '';
+    return `<div class="fin-card" style="display:flex;align-items:center;gap:10px;padding:10px 14px">
+      <span style="font-size:1.2rem;width:28px;text-align:center">${cat.icon}</span>
+      <span style="flex:1;font-size:0.88rem;color:var(--text)">${cat.name}</span>
+      <input type="number" class="bud-input" data-cat="${cat.id}" value="${val}"
+        placeholder="0"
+        style="width:120px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;text-align:right"
+        oninput="markBudgetDirty()">
+    </div>`;
+  }).join('');
+
+  const expInc = budgets?.find(b=>b.category_id==='__expected_income__');
+
+  return `<div class="fin-section">
+    <div class="fin-section-title" style="display:flex;justify-content:space-between">
+      <span>Límite mensual por categoría</span>
+      <span style="font-size:0.75rem;color:var(--text-muted)">${anio}</span>
+    </div>
+    <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">Ingresa cuánto quieres gastar máximo en cada categoría. Deja en 0 las que no uses.</div>
+    ${rows}
+    <button class="fin-add-btn" id="saveBudBtn" onclick="saveBudgets()" style="margin-top:12px">💾 Guardar presupuesto</button>
+    <div id="budSaved" style="display:none;text-align:center;margin-top:10px;color:#4ade80;font-size:0.88rem">✅ Guardado</div>
+  </div>
+  <div class="fin-section" style="margin-top:4px">
+    <div class="fin-section-title">Ingreso mensual esperado</div>
+    <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px">AiYo lo usa para calcular tu balance proyectado.</div>
+    <input type="number" id="expectedIncome" class="fin-input" placeholder="Ej: 5000000" value="${expInc?Number(expInc.amount):''}">
+    <button class="fin-add-btn" onclick="saveExpectedIncome()" style="background:linear-gradient(135deg,#0f6e56,#1d9e75)">💾 Guardar ingreso esperado</button>
+  </div>`;
+}
+
+function markBudgetDirty(){
+  const btn = document.getElementById('saveBudBtn');
+  if(btn) btn.textContent = '💾 Guardar *';
+}
+
+async function saveBudgets(){
+  const now = new Date();
+  const anio = now.getFullYear();
+  const inputs = document.querySelectorAll('.bud-input');
+  const ops = [];
+  inputs.forEach(inp=>{
+    const cat = inp.dataset.cat;
+    const amt = parseFloat(inp.value)||0;
+    if(amt>0){
+      ops.push(sb.from('budgets').upsert({
+        user_id:user.id, category_id:cat, amount:amt,
+        period:'monthly', year:anio, updated_at:new Date().toISOString()
+      },{onConflict:'user_id,category_id,year,period'}));
+    }
+  });
+  await Promise.all(ops);
+  const btn = document.getElementById('saveBudBtn');
+  const saved = document.getElementById('budSaved');
+  if(btn) btn.textContent = '💾 Guardar presupuesto';
+  if(saved){ saved.style.display='block'; setTimeout(()=>saved.style.display='none',2500); }
+}
+
+async function saveExpectedIncome(){
+  const amt = parseFloat(document.getElementById('expectedIncome')?.value)||0;
+  if(!amt) return;
+  await sb.from('budgets').upsert({
+    user_id:user.id, category_id:'__expected_income__',
+    amount:amt, period:'monthly', year:new Date().getFullYear(),
+    updated_at:new Date().toISOString()
+  },{onConflict:'user_id,category_id,year,period'});
+  const saved = document.getElementById('budSaved');
+  if(saved){ saved.style.display='block'; setTimeout(()=>saved.style.display='none',2500); }
 }
 
 async function renderPYG(anio){
@@ -1968,6 +2047,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="fin-tab" onclick="finTab('gastos')">Gastos</div>
       <div class="fin-tab" onclick="finTab('ingresos')">Ingresos</div>
       <div class="fin-tab" onclick="finTab('pyg')">P&G</div>
+      <div class="fin-tab" onclick="finTab('presupuesto')">Presupuesto</div>
     </div>
     <div class="fin-body" id="finBody">
       <div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.9rem;">Cargando...</div>
