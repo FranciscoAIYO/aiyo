@@ -1302,6 +1302,17 @@ async function renderFinTab(tab){
 }
 
 function fmt(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n); }
+function fmtInput(n){ return n?new Intl.NumberFormat('es-CO',{maximumFractionDigits:0}).format(n):''; }
+function parseInput(s){ return parseFloat((s||'').replace(/\./g,'').replace(',','.').replace(/[^0-9.]/g,''))||0; }
+function onMoneyInput(el){
+  const raw = el.value.replace(/\./g,'').replace(',','.').replace(/[^0-9]/g,'');
+  const num = parseInt(raw)||0;
+  const pos = el.selectionStart;
+  const prevLen = el.value.length;
+  el.value = num>0 ? new Intl.NumberFormat('es-CO',{maximumFractionDigits:0}).format(num) : '';
+  const diff = el.value.length - prevLen;
+  el.setSelectionRange(pos+diff, pos+diff);
+}
 
 function renderResumen(txs, incs, budgets, totalGastos, totalIngresos, balance){
   const balColor = balance>=0?'#4ade80':'#f87171';
@@ -1335,7 +1346,7 @@ function renderResumen(txs, incs, budgets, totalGastos, totalIngresos, balance){
   html += `</div>
   <div class="fin-section">
     <div class="fin-section-title">Agregar gasto rápido</div>
-    <input class="fin-input" id="newAmt" type="number" placeholder="Monto (ej: 45000)">
+    <input class="fin-input" id="newAmt" type="text" inputmode="numeric" placeholder="Ej: 1.500.000" oninput="onMoneyInput(this)">
     <input class="fin-input" id="newDesc" type="text" placeholder="Descripción (ej: Almuerzo)">
     <select class="fin-select" id="newCat">
       ${CATS.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
@@ -1362,7 +1373,7 @@ function renderGastos(txs, budgets){
   html += `</div>
   <div class="fin-section">
     <div class="fin-section-title">Nuevo gasto</div>
-    <input class="fin-input" id="newAmt" type="number" placeholder="Monto">
+    <input class="fin-input" id="newAmt" type="text" inputmode="numeric" placeholder="Ej: 1.500.000" oninput="onMoneyInput(this)">
     <input class="fin-input" id="newDesc" type="text" placeholder="Descripción">
     <select class="fin-select" id="newCat">${CATS.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}</select>
     <button class="fin-cam-btn" onclick="document.getElementById('receiptInput').click()">📷 Foto de recibo</button>
@@ -1386,7 +1397,7 @@ function renderIngresos(incs){
   html += `</div>
   <div class="fin-section">
     <div class="fin-section-title">Registrar ingreso</div>
-    <input class="fin-input" id="incAmt" type="number" placeholder="Monto">
+    <input class="fin-input" id="incAmt" type="text" inputmode="numeric" placeholder="Ej: 5.000.000" oninput="onMoneyInput(this)">
     <input class="fin-input" id="incDesc" type="text" placeholder="Descripción (ej: Dividendos AiYo)">
     <select class="fin-select" id="incType">${INC_TYPES.map(t=>`<option value="${t.id}">${t.icon} ${t.name}</option>`).join('')}</select>
     <button class="fin-add-btn" onclick="addIncome()">+ Registrar ingreso</button>
@@ -1410,14 +1421,14 @@ async function renderPresupuesto(){
   });
   const rows = Object.entries(groups).map(([grp, cats])=>{
     const items = cats.map(cat=>{
-      const val = bMap[cat.id] ? Number(bMap[cat.id].amount) : '';
+      const val = bMap[cat.id] ? fmtInput(Number(bMap[cat.id].amount)) : '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:0.5px solid var(--border)">
         <span style="font-size:1rem;width:24px;text-align:center">${cat.icon}</span>
         <span style="flex:1;font-size:0.82rem;color:var(--text)">${cat.name}</span>
-        <input type="number" class="bud-input" data-cat="${cat.id}" value="${val}"
+        <input type="text" inputmode="numeric" class="bud-input" data-cat="${cat.id}" value="${val}"
           placeholder="0"
           style="width:110px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:0.82rem;text-align:right"
-          oninput="markBudgetDirty()">
+          oninput="onMoneyInput(this);markBudgetDirty()">
       </div>`;
     }).join('');
     return `<div class="fin-card" style="padding:0;overflow:hidden;margin-bottom:10px">
@@ -1441,7 +1452,7 @@ async function renderPresupuesto(){
   <div class="fin-section" style="margin-top:4px">
     <div class="fin-section-title">Ingreso mensual esperado</div>
     <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px">AiYo lo usa para calcular tu balance proyectado.</div>
-    <input type="number" id="expectedIncome" class="fin-input" placeholder="Ej: 5000000" value="${expInc?Number(expInc.amount):''}">
+    <input type="text" inputmode="numeric" id="expectedIncome" class="fin-input" placeholder="Ej: 5.000.000" oninput="onMoneyInput(this)" value="${expInc?fmtInput(Number(expInc.amount)):''}">
     <button class="fin-add-btn" onclick="saveExpectedIncome()" style="background:linear-gradient(135deg,#0f6e56,#1d9e75)">💾 Guardar ingreso esperado</button>
   </div>`;
 }
@@ -1458,7 +1469,7 @@ async function saveBudgets(){
   const ops = [];
   inputs.forEach(inp=>{
     const cat = inp.dataset.cat;
-    const amt = parseFloat(inp.value)||0;
+    const amt = parseInput(inp.value);
     if(amt>0){
       ops.push(sb.from('budgets').upsert({
         user_id:user.id, category_id:cat, amount:amt,
@@ -1474,7 +1485,7 @@ async function saveBudgets(){
 }
 
 async function saveExpectedIncome(){
-  const amt = parseFloat(document.getElementById('expectedIncome')?.value)||0;
+  const amt = parseInput(document.getElementById('expectedIncome')?.value);
   if(!amt) return;
   await sb.from('budgets').upsert({
     user_id:user.id, category_id:'__expected_income__',
@@ -1538,7 +1549,7 @@ async function renderPYG(anio){
 }
 
 async function addExpense(){
-  const amt = parseFloat(document.getElementById('newAmt')?.value);
+  const amt = parseInput(document.getElementById('newAmt')?.value);
   const desc = document.getElementById('newDesc')?.value?.trim();
   const cat = document.getElementById('newCat')?.value;
   if(!amt||!desc){alert('Ingresa monto y descripción');return;}
@@ -1580,7 +1591,7 @@ function askExpenseType(desc, amt){
 }
 
 async function addIncome(){
-  const amt = parseFloat(document.getElementById('incAmt')?.value);
+  const amt = parseInput(document.getElementById('incAmt')?.value);
   const desc = document.getElementById('incDesc')?.value?.trim();
   const type = document.getElementById('incType')?.value;
   if(!amt||!desc){alert('Ingresa monto y descripción');return;}
