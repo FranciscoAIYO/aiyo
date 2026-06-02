@@ -976,6 +976,7 @@ function setMood(m){
   qs(`Me siento ${m} ahora mismo`);
 }
 function toggleMic(){
+  if(isSpeaking) return;  // No escuchar mientras AiYo habla
   if(lstn){stopMic();return;}
   if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){alert('Tu navegador no soporta voz');return;}
   // Init AudioContext on user interaction to unlock audio
@@ -1044,7 +1045,12 @@ async function speak(text){
       const blob=await r.blob();
       const url=URL.createObjectURL(blob);
       const audio=new Audio(url);
-      audio.onended=()=>URL.revokeObjectURL(url);
+      audio.onended=()=>{
+        URL.revokeObjectURL(url);
+        isSpeaking=false;
+        if(voiceEnabled) setTimeout(()=>toggleMic(),400);
+      };
+      isSpeaking=true;
       await audio.play();
       return;
     }
@@ -1067,6 +1073,11 @@ async function speak(text){
   }
   const esVoice=voices.find(v=>v.lang.startsWith('es'));
   if(esVoice) utter.voice=esVoice;
+  isSpeaking=true;
+  utter.onend=()=>{
+    isSpeaking=false;
+    if(voiceEnabled) setTimeout(()=>toggleMic(),400);
+  };
   speechSynthesis.speak(utter);
 }
 
