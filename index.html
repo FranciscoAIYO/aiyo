@@ -1618,7 +1618,15 @@ async function renderAnalisis(){
 .${uid} .row{display:grid;gap:8px;margin-bottom:8px}
 .${uid} .r3{grid-template-columns:3fr 2fr}
 .${uid} .r2b{grid-template-columns:5fr 3fr}
-.${uid} .card{background:#161428;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px}
+.${uid} .card{background:#161428;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.2s}
+.${uid} .card:hover{border-color:rgba(167,139,250,0.3)}
+.${uid} .card.no-expand{cursor:default}
+.${uid} .card.no-expand:hover{border-color:rgba(255,255,255,0.06)}
+.${uid}-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.${uid}-modal{background:#0E0C1E;border:0.5px solid rgba(167,139,250,0.25);border-radius:16px;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;padding:20px;position:relative}
+.${uid}-modal-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.06);border:none;color:#A78BFA;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.${uid}-modal-title{font-size:14px;font-weight:500;color:#EDE9F8;margin-bottom:4px}
+.${uid}-modal-sub{font-size:11px;color:#6B6480;margin-bottom:16px}
 .${uid} .ct{font-size:10px;font-weight:500;color:#6B6480;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
 .${uid} .leg{display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:#6B6480}
 .${uid} .ld{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
@@ -1649,26 +1657,26 @@ async function renderAnalisis(){
       <div class="kpi"><div class="ka" style="background:#EF9F27"></div><div class="kl">Ritmo</div><div class="kv" style="color:#FAC775">${pctGastado}%</div><span class="kc ${ritmoOk?'cg':'ca'}">${ritmoOk?'Vas bien':'Revisar'}</span></div>
     </div>
     <div class="row r3">
-      <div class="card">
+      <div class="card" onclick="expandCard(this,'Ingresos vs gastos ${anio}','Ingresos, gastos y utilidad mes a mes')">
         <div class="ch"><span class="ct">Ingresos vs gastos ${anio}</span>
           <div class="leg"><span><span class="ld" style="background:#1d9e75"></span>Ingresos</span><span><span class="ld" style="background:#f87171"></span>Gastos</span><span><span class="ld" style="background:#7F77DD"></span>Utilidad</span></div>
         </div>
         <div style="position:relative;height:180px"><canvas id="${c1id}" role="img" aria-label="Ingresos vs gastos mensuales">Datos mensuales.</canvas></div>
       </div>
-      <div class="card">
+      <div class="card" onclick="expandCard(this,'Distribución de gastos','Cuánto va a cada grupo este mes')">
         <div class="ch"><span class="ct">Distribución gastos</span></div>
         <div style="position:relative;height:130px;margin-bottom:8px"><canvas id="${c2id}" role="img" aria-label="Distribución por grupo">Por categoría.</canvas></div>
         <div class="leg" style="justify-content:center">${grpKeys.slice(0,6).map((g,i)=>`<span><span class="ld" style="background:${grpColors[i%grpColors.length]}"></span>${g}</span>`).join('')}</div>
       </div>
     </div>
     <div class="row r2b">
-      <div class="card">
+      <div class="card" onclick="expandCard(this,'Presupuesto vs real','Comparativo por grupo de gasto')">
         <div class="ch"><span class="ct">Presupuesto vs real</span>
           <div class="leg"><span><span class="ld" style="background:rgba(127,119,221,0.25)"></span>Ppto</span><span><span class="ld" style="background:#7F77DD"></span>Real</span></div>
         </div>
         <div style="position:relative;height:${Math.max(160,grpEntries.length*36+40)}px"><canvas id="${c3id}" role="img" aria-label="Comparativo por grupo">Comparativo grupos.</canvas></div>
       </div>
-      <div class="card">
+      <div class="card no-expand">
         <div class="ct">Alertas del mes</div>
         ${alertas.length?alertas.slice(0,5).map(({cat,gas,lim,pct})=>`
           <div class="ar">
@@ -1743,6 +1751,68 @@ async function renderAnalisis(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},
       scales:{x:{ticks:{color:tc,font:{size:9}},grid:{display:false},border:{display:false}},y:{display:false}}}
   });
+
+  window.expandCard = function(card, title, subtitle){
+    if(card.classList.contains('no-expand')) return;
+    const overlay = document.createElement('div');
+    overlay.className = '${uid}-overlay';
+    // Clonar el contenido de la card
+    const modal = document.createElement('div');
+    modal.className = '${uid}-modal';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = '${uid}-modal-close';
+    closeBtn.innerHTML = '✕';
+    closeBtn.onclick = ()=>{ overlay.remove(); };
+    const ttl = document.createElement('div');
+    ttl.className = '${uid}-modal-title';
+    ttl.textContent = title;
+    const sub = document.createElement('div');
+    sub.className = '${uid}-modal-sub';
+    sub.textContent = subtitle;
+    // Clonar canvas y contenido
+    const inner = document.createElement('div');
+    const cloned = card.cloneNode(true);
+    cloned.classList.remove('card');
+    cloned.style.cssText = 'cursor:default;padding:0';
+    // Agrandar el canvas clonado
+    const canvases = cloned.querySelectorAll('canvas');
+    canvases.forEach(c=>{
+      const wrap = c.parentElement;
+      if(wrap) wrap.style.height = '320px';
+    });
+    inner.appendChild(cloned);
+    modal.appendChild(closeBtn);
+    modal.appendChild(ttl);
+    modal.appendChild(sub);
+    modal.appendChild(inner);
+    overlay.appendChild(modal);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+
+    // Re-renderizar los charts en el modal con los mismos datos
+    const newCanvases = modal.querySelectorAll('canvas');
+    newCanvases.forEach(nc=>{
+      const origId = nc.id;
+      const newId = origId + '_exp';
+      nc.id = newId;
+      // Buscar el chart original
+      const origChart = Chart.instances ? Object.values(Chart.instances).find(ch=>ch.canvas.id===origId) : null;
+      if(origChart){
+        setTimeout(()=>{
+          new Chart(nc, {
+            type: origChart.config.type,
+            data: JSON.parse(JSON.stringify(origChart.config.data)),
+            options: {
+              ...origChart.config.options,
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: { duration: 600 }
+            }
+          });
+        }, 50);
+      }
+    });
+  };
 })();
 </script>`;
 
