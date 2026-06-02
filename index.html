@@ -387,6 +387,7 @@ body::before{
 .fin-cam-btn{width:100%;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.88rem;color:var(--text);margin-bottom:8px}
 
   </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 </head>
 <body>
 
@@ -1525,202 +1526,228 @@ async function renderAnalisis(){
   const now = new Date();
   const mes = now.getMonth()+1;
   const anio = now.getFullYear();
-  const mesNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mes-1];
+  const mesNom = ['Enero','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mes-1];
   const diasMes = new Date(anio,mes,0).getDate();
   const diaHoy = now.getDate();
   const pctMes = Math.round(diaHoy/diasMes*100);
 
-  let txsMes=[], txsAnio=[], budgets=[], incs=[];
+  let txsMes=[],txsAnio=[],budgets=[],incs=[];
   try{
     const [r1,r2,r3,r4] = await Promise.all([
-      sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
-        .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`),
-      sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
-        .gte('date',`${anio}-01-01`),
+      sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto').gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`),
+      sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto').gte('date',`${anio}-01-01`),
       sb.from('budgets').select('*').eq('user_id',user.id).eq('year',anio),
-      sb.from('incomes').select('*').eq('user_id',user.id)
-        .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`)
+      sb.from('incomes').select('*').eq('user_id',user.id).gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`)
     ]);
     txsMes=r1.data||[]; txsAnio=r2.data||[]; budgets=r3.data||[]; incs=r4.data||[];
-    if(r1.error||r2.error||r3.error) console.error('Análisis errors:',r1.error,r2.error,r3.error);
-  }catch(e){
-    return `<div style="padding:20px;color:#f87171;font-size:0.88rem">Error: ${e.message}</div>`;
-  }
+  }catch(e){ return `<div style="padding:20px;color:#f87171">Error: ${e.message}</div>`; }
 
-  const bMap = {};
+  const bMap={};
   (budgets||[]).forEach(b=>{ bMap[b.category_id]=b; });
+  const totalBudMes = Object.values(bMap).filter(b=>b.category_id!=='__expected_income__').reduce((s,b)=>s+Number(b.amount),0);
+  const totalGasMes = txsMes.reduce((s,t)=>s+Number(t.amount),0);
+  const totalGasAnio = txsAnio.reduce((s,t)=>s+Number(t.amount),0);
+  const totalIngMes = incs.reduce((s,i)=>s+Number(i.amount),0);
+  const balance = totalIngMes - totalGasMes;
+  const ritmoEsp = Math.round(totalBudMes*pctMes/100);
+  const ritmoOk = totalGasMes <= ritmoEsp;
+  const pctGastado = totalBudMes>0?Math.min(108,Math.round(totalGasMes/totalBudMes*100)):0;
 
-  const totalBudMes = Object.values(bMap)
-    .filter(b=>b.category_id!=='__expected_income__')
-    .reduce((s,b)=>s+Number(b.amount),0);
-  const totalBudAnio = totalBudMes * 12;
-  const totalGasMes  = (txsMes||[]).reduce((s,t)=>s+Number(t.amount),0);
-  const totalGasAnio = (txsAnio||[]).reduce((s,t)=>s+Number(t.amount),0);
-  const totalIngMes  = (incs||[]).reduce((s,i)=>s+Number(i.amount),0);
-  const expInc = bMap['__expected_income__'] ? Number(bMap['__expected_income__'].amount) : 0;
-
-  // Ritmo esperado al día de hoy
-  const ritmoEsp = Math.round(totalBudMes * pctMes / 100);
-  const ritmoDiff = totalGasMes - ritmoEsp;
-  const ritmoOk = ritmoDiff <= 0;
-
-  // Alertas por grupo
-  const grupos = {};
+  // Grupos
+  const grupos={};
   CATS.forEach(cat=>{
-    const g = cat.group||'Otros';
-    if(!grupos[g]) grupos[g]={cats:[],gasMes:0,gasAnio:0,budMes:0};
-    grupos[g].cats.push(cat);
-    grupos[g].gasMes  += (txsMes||[]).filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
-    grupos[g].gasAnio += (txsAnio||[]).filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
-    const b = bMap[cat.id];
-    if(b) grupos[g].budMes += Number(b.amount);
+    const g=cat.group||'Otros';
+    if(!grupos[g]) grupos[g]={gasMes:0,gasAnio:0,budMes:0};
+    grupos[g].gasMes  += txsMes.filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    grupos[g].gasAnio += txsAnio.filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    const b=bMap[cat.id]; if(b) grupos[g].budMes+=Number(b.amount);
   });
 
-  // Alertas por subcategoría
-  const alertas = [];
+  // Alertas subcategorías
+  const alertas=[];
   CATS.forEach(cat=>{
-    const b = bMap[cat.id];
-    if(!b) return;
-    const gas = (txsMes||[]).filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
-    const lim = Number(b.amount);
-    const pct = lim>0 ? Math.round(gas/lim*100) : 0;
-    if(pct>=80) alertas.push({cat,gas,lim,pct});
+    const b=bMap[cat.id]; if(!b) return;
+    const gas=txsMes.filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    const lim=Number(b.amount);
+    const pct=lim>0?Math.round(gas/lim*100):0;
+    if(pct>=60) alertas.push({cat,gas,lim,pct});
   });
   alertas.sort((a,b)=>b.pct-a.pct);
 
-  // HTML
-  let html = '';
-
-  // ── Encabezado del mes ──
-  html += `<div class="fin-section">
-    <div class="fin-section-title">Ritmo de gasto — ${mesNom}</div>
-    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px">Vamos en el día ${diaHoy} de ${diasMes} (${pctMes}% del mes)</div>
-    <div class="fin-summary" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
-      <div class="fin-stat">
-        <div class="fin-stat-label">Presupuesto mes</div>
-        <div class="fin-stat-val" style="color:var(--text)">${fmt(totalBudMes)}</div>
-      </div>
-      <div class="fin-stat">
-        <div class="fin-stat-label">Gastado</div>
-        <div class="fin-stat-val" style="color:${totalGasMes>totalBudMes?'#f87171':'#4ade80'}">${fmt(totalGasMes)}</div>
-      </div>
-      <div class="fin-stat">
-        <div class="fin-stat-label">Disponible</div>
-        <div class="fin-stat-val" style="color:${totalBudMes-totalGasMes<0?'#f87171':'#a78bfa'}">${fmt(totalBudMes-totalGasMes)}</div>
-      </div>
-    </div>
-    <div class="fin-card" style="margin-top:8px">
-      <div class="fin-row">
-        <span class="fin-label">Ritmo esperado a hoy</span>
-        <span style="font-size:0.88rem;color:var(--text-muted)">${fmt(ritmoEsp)}</span>
-      </div>
-      <div class="fin-row">
-        <span class="fin-label">Gasto real a hoy</span>
-        <span style="font-size:0.88rem;font-weight:500;color:${ritmoOk?'#4ade80':'#f87171'}">${fmt(totalGasMes)}</span>
-      </div>
-      <div class="fin-bar-wrap" style="margin-top:6px">
-        <div class="fin-bar ${totalGasMes/totalBudMes>=1?'over':totalGasMes/totalBudMes>=0.8?'warn':'ok'}"
-          style="width:${Math.min(100,Math.round(totalGasMes/totalBudMes*100))}%"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.75rem;color:var(--text-muted)">
-        <span>0</span><span style="color:#a78bfa">▲ hoy ${pctMes}%</span><span>${fmt(totalBudMes)}</span>
-      </div>
-      <div style="margin-top:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;background:${ritmoOk?'rgba(74,222,128,0.1)':'rgba(248,113,113,0.1)'};color:${ritmoOk?'#4ade80':'#f87171'}">
-        ${ritmoOk
-          ? `Vas bien — llevas ${fmt(Math.abs(ritmoDiff))} menos de lo esperado para este día 👍`
-          : `Vas ${fmt(ritmoDiff)} por encima del ritmo esperado para hoy ⚠️`}
-      </div>
-    </div>
-  </div>`;
-
-  // ── Alertas ──
-  if(alertas.length){
-    html += `<div class="fin-section">
-      <div class="fin-section-title">⚠️ Alertas del mes</div>`;
-    alertas.forEach(({cat,gas,lim,pct})=>{
-      const over = pct>=100;
-      html += `<div class="fin-card" style="border-left:3px solid ${over?'#f87171':'#fbbf24'};border-radius:0 12px 12px 0">
-        <div class="fin-row">
-          <span class="fin-label">${cat.icon} ${cat.name}</span>
-          <span style="font-size:0.82rem;font-weight:600;color:${over?'#f87171':'#fbbf24'}">${pct}%</span>
-        </div>
-        <div class="fin-row" style="margin-bottom:4px">
-          <span style="font-size:0.78rem;color:var(--text-muted)">Gastado ${fmt(gas)} de ${fmt(lim)}</span>
-          <span style="font-size:0.75rem;padding:2px 8px;border-radius:20px;background:${over?'rgba(248,113,113,0.15)':'rgba(251,191,36,0.15)'};color:${over?'#f87171':'#fbbf24'}">${over?'EXCEDIDO':'CERCA DEL LÍMITE'}</span>
-        </div>
-        <div class="fin-bar-wrap">
-          <div class="fin-bar ${over?'over':'warn'}" style="width:${Math.min(100,pct)}%"></div>
-        </div>
-      </div>`;
-    });
-    html += `</div>`;
-  } else {
-    html += `<div class="fin-section">
-      <div class="fin-card" style="text-align:center;padding:16px;color:#4ade80;font-size:0.88rem">
-        ✅ Sin alertas este mes — todo dentro del presupuesto
-      </div>
-    </div>`;
+  // Datos mensuales para gráfica
+  const mesesLabels=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const dataIngs=[], dataGas=[], dataUtil=[];
+  for(let m=1;m<=12;m++){
+    const pad=String(m).padStart(2,'0');
+    const gi=await sb.from('incomes').select('amount').eq('user_id',user.id).gte('date',`${anio}-${pad}-01`).lte('date',`${anio}-${pad}-31`);
+    const gt=await sb.from('transactions').select('amount').eq('user_id',user.id).eq('type','gasto').gte('date',`${anio}-${pad}-01`).lte('date',`${anio}-${pad}-31`);
+    const ing=(gi.data||[]).reduce((s,x)=>s+Number(x.amount),0);
+    const gas=(gt.data||[]).reduce((s,x)=>s+Number(x.amount),0);
+    dataIngs.push(ing); dataGas.push(gas); dataUtil.push(ing-gas);
   }
 
-  // ── Comparativo por grupo mes vs año ──
-  html += `<div class="fin-section">
-    <div class="fin-section-title">Comparativo por grupo</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:8px 0;font-size:0.72rem;color:var(--text-muted);font-weight:600">
-      <span>Grupo</span><span style="text-align:right">Mes</span><span style="text-align:right">Año</span>
-    </div>`;
+  // Datos dona por grupo
+  const grpKeys=Object.keys(grupos).filter(g=>grupos[g].gasMes>0);
+  const grpVals=grpKeys.map(g=>grupos[g].gasMes);
+  const grpColors=['#7F77DD','#1d9e75','#EF9F27','#378ADD','#D4537E','#B4B2A9','#f97316','#22d3ee','#e879f9','#4ade80'];
 
-  Object.entries(grupos).forEach(([grp,g])=>{
-    if(!g.gasMes && !g.gasAnio && !g.budMes) return;
-    const pctG = g.budMes>0 ? Math.min(100,Math.round(g.gasMes/g.budMes*100)) : 0;
-    const barColor = pctG>=100?'#f87171':pctG>=80?'#fbbf24':'#4ade80';
-    html += `<div class="fin-card" style="padding:10px 14px;margin-bottom:6px">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;align-items:center">
-        <span style="font-size:0.82rem;font-weight:500;color:var(--text)">${grp}</span>
-        <span style="text-align:right;font-size:0.82rem;color:${g.gasMes>g.budMes&&g.budMes>0?'#f87171':'var(--text)'}">${fmt(g.gasMes)}</span>
-        <span style="text-align:right;font-size:0.82rem;color:var(--text-muted)">${fmt(g.gasAnio)}</span>
+  // Datos barras horizontales
+  const grpEntries=Object.entries(grupos).filter(([,g])=>g.gasMes>0||g.budMes>0).slice(0,8);
+
+  const uid='db'+Date.now();
+  const c1id=uid+'c1', c2id=uid+'c2', c3id=uid+'c3', c4id=uid+'c4';
+
+  const html=`
+<style>
+.${uid}{padding:16px;background:#07060F;position:relative;overflow:hidden;border-radius:0 0 20px 20px}
+.${uid}-stars{position:absolute;inset:0;pointer-events:none;z-index:0}
+.${uid} *{box-sizing:border-box}
+.${uid}-grad{position:absolute;inset:0;background:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(123,94,255,0.18) 0%,transparent 70%);pointer-events:none;z-index:0}
+.${uid} .rel{position:relative;z-index:1}
+.${uid} .dbh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.${uid} .dbt{font-size:17px;font-weight:500;color:#EDE9F8}
+.${uid} .dbs{font-size:11px;color:#6B6480;margin-top:2px}
+.${uid} .pill{font-size:11px;padding:4px 12px;border-radius:20px;background:rgba(127,119,221,0.15);color:#A78BFA;font-weight:500}
+.${uid} .kg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.${uid} .kpi{background:#161428;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:13px 14px;position:relative;overflow:hidden}
+.${uid} .ka{position:absolute;top:0;left:0;right:0;height:3px}
+.${uid} .kl{font-size:9px;color:#6B6480;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;margin-top:2px}
+.${uid} .kv{font-size:17px;font-weight:500;line-height:1;margin-bottom:5px}
+.${uid} .kc{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;display:inline-block}
+.${uid} .cg{background:#085041;color:#9FE1CB} .${uid} .cr{background:#501313;color:#F7C1C1} .${uid} .ca{background:#412402;color:#FAC775} .${uid} .cp{background:#26215C;color:#CECBF6}
+.${uid} .row{display:grid;gap:8px;margin-bottom:8px}
+.${uid} .r3{grid-template-columns:3fr 2fr}
+.${uid} .r2b{grid-template-columns:5fr 3fr}
+.${uid} .card{background:#161428;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px}
+.${uid} .ct{font-size:10px;font-weight:500;color:#6B6480;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.${uid} .leg{display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:#6B6480}
+.${uid} .ld{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
+.${uid} .ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.${uid} .ar{display:flex;align-items:center;gap:7px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.05)}
+.${uid} .ar:last-child{border:none;padding-bottom:0}
+.${uid} .ai{font-size:15px;width:22px;text-align:center;flex-shrink:0}
+.${uid} .an{font-size:11px;color:#EDE9F8;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.${uid} .at{flex:1.4;background:#1E1B35;border-radius:3px;height:5px;min-width:30px}
+.${uid} .af{height:5px;border-radius:3px}
+.${uid} .ap{font-size:11px;font-weight:500;min-width:30px;text-align:right}
+.${uid} .bd{font-size:9px;padding:2px 6px;border-radius:20px;font-weight:600;flex-shrink:0}
+.${uid} .bo{background:#501313;color:#F7C1C1} .${uid} .bw{background:#412402;color:#FAC775}
+.${uid} .sep{margin-top:12px;padding-top:12px;border-top:0.5px solid rgba(255,255,255,0.05)}
+</style>
+<div class="${uid}">
+  <div class="${uid}-stars" id="${uid}st"></div>
+  <div class="${uid}-grad"></div>
+  <div class="rel">
+    <div class="dbh">
+      <div><div class="dbt">AiYo Finanzas</div><div class="dbs">${mesNom} ${anio} · día ${diaHoy} de ${diasMes}</div></div>
+      <span class="pill">${ritmoOk?'▲ Buen ritmo':'⚠ Revisa el ritmo'}</span>
+    </div>
+    <div class="kg">
+      <div class="kpi"><div class="ka" style="background:#1d9e75"></div><div class="kl">Ingresos mes</div><div class="kv" style="color:#5DCAA5">${fmt(totalIngMes)}</div><span class="kc cg">Recibido</span></div>
+      <div class="kpi"><div class="ka" style="background:#A32D2D"></div><div class="kl">Gastos mes</div><div class="kv" style="color:#f87171">${fmt(totalGasMes)}</div><span class="kc ${pctGastado>=100?'cr':pctGastado>=80?'ca':'cg'}">${pctGastado}% ppto</span></div>
+      <div class="kpi"><div class="ka" style="background:#534AB7"></div><div class="kl">Balance</div><div class="kv" style="color:${balance>=0?'#A78BFA':'#f87171'}">${fmt(balance)}</div><span class="kc cp">${balance>=0?'Disponible':'Déficit'}</span></div>
+      <div class="kpi"><div class="ka" style="background:#EF9F27"></div><div class="kl">Ritmo</div><div class="kv" style="color:#FAC775">${pctGastado}%</div><span class="kc ${ritmoOk?'cg':'ca'}">${ritmoOk?'Vas bien':'Revisar'}</span></div>
+    </div>
+    <div class="row r3">
+      <div class="card">
+        <div class="ch"><span class="ct">Ingresos vs gastos ${anio}</span>
+          <div class="leg"><span><span class="ld" style="background:#1d9e75"></span>Ingresos</span><span><span class="ld" style="background:#f87171"></span>Gastos</span><span><span class="ld" style="background:#7F77DD"></span>Utilidad</span></div>
+        </div>
+        <div style="position:relative;height:180px"><canvas id="${c1id}" role="img" aria-label="Ingresos vs gastos mensuales">Datos mensuales.</canvas></div>
       </div>
-      ${g.budMes?`<div class="fin-bar-wrap" style="margin-top:6px"><div class="fin-bar" style="width:${pctG}%;background:${barColor}"></div></div>`:''}
-      ${g.budMes?`<div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">Ppto mes: ${fmt(g.budMes)} · ${pctG}% usado</div>`:''}
-    </div>`;
+      <div class="card">
+        <div class="ch"><span class="ct">Distribución gastos</span></div>
+        <div style="position:relative;height:130px;margin-bottom:8px"><canvas id="${c2id}" role="img" aria-label="Distribución por grupo">Por categoría.</canvas></div>
+        <div class="leg" style="justify-content:center">${grpKeys.slice(0,6).map((g,i)=>`<span><span class="ld" style="background:${grpColors[i%grpColors.length]}"></span>${g}</span>`).join('')}</div>
+      </div>
+    </div>
+    <div class="row r2b">
+      <div class="card">
+        <div class="ch"><span class="ct">Presupuesto vs real</span>
+          <div class="leg"><span><span class="ld" style="background:rgba(127,119,221,0.25)"></span>Ppto</span><span><span class="ld" style="background:#7F77DD"></span>Real</span></div>
+        </div>
+        <div style="position:relative;height:${Math.max(160,grpEntries.length*36+40)}px"><canvas id="${c3id}" role="img" aria-label="Comparativo por grupo">Comparativo grupos.</canvas></div>
+      </div>
+      <div class="card">
+        <div class="ct">Alertas del mes</div>
+        ${alertas.length?alertas.slice(0,5).map(({cat,gas,lim,pct})=>`
+          <div class="ar">
+            <span class="ai">${cat.icon}</span>
+            <span class="an">${cat.name}</span>
+            <div class="at"><div class="af" style="width:${Math.min(100,pct)}%;background:${pct>=100?'#A32D2D':pct>=80?'#BA7517':'#1d9e75'}"></div></div>
+            <span class="ap" style="color:${pct>=100?'#f87171':pct>=80?'#FAC775':'#5DCAA5'}">${pct}%</span>
+            ${pct>=100?`<span class="bd bo">EXCEDIDO</span>`:pct>=80?`<span class="bd bw">CERCA</span>`:''}
+          </div>`).join('')
+        :'<div style="font-size:12px;color:#1d9e75;padding:10px 0;text-align:center">✅ Todo dentro del presupuesto</div>'}
+        <div class="sep">
+          <div class="ct" style="margin-bottom:8px">Tendencia gasto</div>
+          <div style="position:relative;height:55px"><canvas id="${c4id}" role="img" aria-label="Tendencia gasto">Tendencia.</canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const st=document.getElementById('${uid}st');
+  if(st&&!st.children.length){
+    for(let i=0;i<90;i++){
+      const s=document.createElement('div');
+      const sz=Math.random()<0.65?1:Math.random()<0.8?1.5:2.5;
+      s.style.cssText='position:absolute;background:white;border-radius:50%;animation:tw var(--d) ease-in-out infinite;width:'+sz+'px;height:'+sz+'px;left:'+Math.random()*100+'%;top:'+Math.random()*100+'%;--d:'+(2+Math.random()*4)+'s;--b:'+(0.3+Math.random()*0.7)+';animation-delay:'+(Math.random()*5)+'s';
+      st.appendChild(s);
+    }
+  }
+  const tc='rgba(107,100,128,0.9)';
+  const gc='rgba(255,255,255,0.04)';
+  const fmtC=v=>'$'+new Intl.NumberFormat('es-CO',{notation:'compact',maximumFractionDigits:1}).format(v);
+  const tooltipOpts={backgroundColor:'#161428',titleColor:'#EDE9F8',bodyColor:'#6B6480',borderColor:'rgba(167,139,250,0.2)',borderWidth:1,callbacks:{label:ctx=>' '+fmtC(ctx.raw)}};
+  const axX={ticks:{color:tc,font:{size:10},maxRotation:0},grid:{color:gc},border:{display:false}};
+  const axY={ticks:{color:tc,font:{size:10},callback:fmtC},grid:{color:gc},border:{display:false}};
+
+  new Chart(document.getElementById('${c1id}'),{
+    type:'bar',
+    data:{
+      labels:${json.dumps(mesesLabels)},
+      datasets:[
+        {label:'Ingresos',data:${json.dumps(dataIngs)},backgroundColor:'rgba(29,158,117,0.75)',borderRadius:5,borderSkipped:false,order:2},
+        {label:'Gastos',data:${json.dumps(dataGas)},backgroundColor:'rgba(163,45,45,0.75)',borderRadius:5,borderSkipped:false,order:2},
+        {label:'Utilidad',data:${json.dumps(dataUtil)},type:'line',borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#7F77DD',pointBorderColor:'#07060F',pointBorderWidth:1.5,tension:0.4,fill:true,order:1}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:tooltipOpts},scales:{x:axX,y:{...axY,beginAtZero:true}}}
   });
-  html += `</div>`;
 
-  // ── Año en contexto ──
-  const mesesTransc = mes;
-  const budAnioProyect = totalBudMes * 12;
-  const ritmoAnual = totalBudMes>0 ? Math.round(totalGasAnio/(totalBudMes*mesesTransc)*100) : 0;
-  html += `<div class="fin-section">
-    <div class="fin-section-title">Año ${anio} en contexto</div>
-    <div class="fin-summary">
-      <div class="fin-stat">
-        <div class="fin-stat-label">Gastado año</div>
-        <div class="fin-stat-val" style="color:#f87171">${fmt(totalGasAnio)}</div>
-      </div>
-      <div class="fin-stat">
-        <div class="fin-stat-label">Ppto anual</div>
-        <div class="fin-stat-val">${fmt(budAnioProyect)}</div>
-      </div>
-      <div class="fin-stat">
-        <div class="fin-stat-label">Meses transcurridos</div>
-        <div class="fin-stat-val">${mesesTransc} de 12</div>
-      </div>
-      <div class="fin-stat">
-        <div class="fin-stat-label">Ritmo vs ppto</div>
-        <div class="fin-stat-val" style="color:${ritmoAnual>110?'#f87171':ritmoAnual>90?'#fbbf24':'#4ade80'}">${ritmoAnual}%</div>
-      </div>
-    </div>
-    <div class="fin-bar-wrap" style="height:8px;margin-top:4px">
-      <div class="fin-bar ${totalGasAnio/budAnioProyect>=1?'over':totalGasAnio/budAnioProyect>=0.8?'warn':'ok'}"
-        style="height:8px;width:${Math.min(100,Math.round(totalGasAnio/budAnioProyect*100))}%"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.75rem;color:var(--text-muted)">
-      <span>Ene</span><span style="color:#a78bfa">▲ ${mesNom}</span><span>Dic</span>
-    </div>
-  </div>`;
+  new Chart(document.getElementById('${c2id}'),{
+    type:'doughnut',
+    data:{labels:${json.dumps(grpKeys)},datasets:[{data:${json.dumps(grpVals)},backgroundColor:${json.dumps(grpColors[:len(grpKeys)])},borderWidth:2,borderColor:'#07060F',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...tooltipOpts,callbacks:{label:ctx=>` ${ctx.label}: ${fmtC(ctx.raw)}`}}},cutout:'72%'}
+  });
+
+  new Chart(document.getElementById('${c3id}'),{
+    type:'bar',
+    data:{
+      labels:${json.dumps([g[0] for g in grpEntries])},
+      datasets:[
+        {label:'Presupuesto',data:${json.dumps([g[1]['budMes'] for g in grpEntries])},backgroundColor:'rgba(127,119,221,0.2)',borderRadius:4,borderSkipped:false},
+        {label:'Real',data:${json.dumps([g[1]['gasMes'] for g in grpEntries])},backgroundColor:'rgba(127,119,221,0.8)',borderRadius:4,borderSkipped:false}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{...tooltipOpts,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtC(ctx.raw)}`}}},
+      scales:{x:{ticks:{color:tc,font:{size:9},callback:fmtC},grid:{color:gc},border:{display:false}},y:{ticks:{color:tc,font:{size:10}},grid:{display:false},border:{display:false}}}}
+  });
+
+  new Chart(document.getElementById('${c4id}'),{
+    type:'line',
+    data:{labels:${json.dumps(mesesLabels)},datasets:[{data:${json.dumps(dataGas)},borderColor:'#7F77DD',backgroundColor:'rgba(127,119,221,0.08)',borderWidth:2,pointRadius:0,tension:0.4,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{ticks:{color:tc,font:{size:9}},grid:{display:false},border:{display:false}},y:{display:false}}}
+  });
+})();
+</script>`;
 
   return html;
 }
-
 async function renderPYG(anio){
   const {data:txsYear} = await sb.from('transactions').select('*').eq('user_id',user.id)
     .gte('date',`${anio}-01-01`).lte('date',`${anio}-12-31`);
