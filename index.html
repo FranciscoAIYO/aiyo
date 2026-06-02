@@ -1267,7 +1267,7 @@ function closeFinance(e){
 function finTab(tab){
   finTabActive = tab;
   document.querySelectorAll('.fin-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['resumen','gastos','ingresos','pyg','presupuesto'][i]===tab);
+    t.classList.toggle('active', ['resumen','gastos','ingresos','pyg','presupuesto','analisis'][i]===tab);
   });
   renderFinTab(tab);
 }
@@ -1299,6 +1299,7 @@ async function renderFinTab(tab){
   if(tab==='ingresos') body.innerHTML = renderIngresos(incs||[]);
   if(tab==='pyg')     body.innerHTML = await renderPYG(anio);
   if(tab==='presupuesto') body.innerHTML = await renderPresupuesto();
+  if(tab==='analisis')    body.innerHTML = await renderAnalisis();
 }
 
 function fmt(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n); }
@@ -1496,6 +1497,200 @@ async function saveExpectedIncome(){
   if(saved){ saved.style.display='block'; setTimeout(()=>saved.style.display='none',2500); }
 }
 
+
+async function renderAnalisis(){
+  const now = new Date();
+  const mes = now.getMonth()+1;
+  const anio = now.getFullYear();
+  const mesNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][mes-1];
+  const diasMes = new Date(anio,mes,0).getDate();
+  const diaHoy = now.getDate();
+  const pctMes = Math.round(diaHoy/diasMes*100);
+
+  const [{data:txsMes},{data:txsAnio},{data:budgets},{data:incs}] = await Promise.all([
+    sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
+      .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`),
+    sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
+      .gte('date',`${anio}-01-01`),
+    sb.from('budgets').select('*').eq('user_id',user.id).eq('year',anio),
+    sb.from('incomes').select('*').eq('user_id',user.id)
+      .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`)
+  ]);
+
+  const bMap = {};
+  (budgets||[]).forEach(b=>{ bMap[b.category_id]=b; });
+
+  const totalBudMes = Object.values(bMap)
+    .filter(b=>b.category_id!=='__expected_income__')
+    .reduce((s,b)=>s+Number(b.amount),0);
+  const totalBudAnio = totalBudMes * 12;
+  const totalGasMes  = (txsMes||[]).reduce((s,t)=>s+Number(t.amount),0);
+  const totalGasAnio = (txsAnio||[]).reduce((s,t)=>s+Number(t.amount),0);
+  const totalIngMes  = (incs||[]).reduce((s,i)=>s+Number(i.amount),0);
+  const expInc = bMap['__expected_income__'] ? Number(bMap['__expected_income__'].amount) : 0;
+
+  // Ritmo esperado al día de hoy
+  const ritmoEsp = Math.round(totalBudMes * pctMes / 100);
+  const ritmoDiff = totalGasMes - ritmoEsp;
+  const ritmoOk = ritmoDiff <= 0;
+
+  // Alertas por grupo
+  const grupos = {};
+  CATS.forEach(cat=>{
+    const g = cat.group||'Otros';
+    if(!grupos[g]) grupos[g]={cats:[],gasMes:0,gasAnio:0,budMes:0};
+    grupos[g].cats.push(cat);
+    grupos[g].gasMes  += (txsMes||[]).filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    grupos[g].gasAnio += (txsAnio||[]).filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    const b = bMap[cat.id];
+    if(b) grupos[g].budMes += Number(b.amount);
+  });
+
+  // Alertas por subcategoría
+  const alertas = [];
+  CATS.forEach(cat=>{
+    const b = bMap[cat.id];
+    if(!b) return;
+    const gas = (txsMes||[]).filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    const lim = Number(b.amount);
+    const pct = lim>0 ? Math.round(gas/lim*100) : 0;
+    if(pct>=80) alertas.push({cat,gas,lim,pct});
+  });
+  alertas.sort((a,b)=>b.pct-a.pct);
+
+  // HTML
+  let html = '';
+
+  // ── Encabezado del mes ──
+  html += `<div class="fin-section">
+    <div class="fin-section-title">Ritmo de gasto — ${mesNom}</div>
+    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px">Vamos en el día ${diaHoy} de ${diasMes} (${pctMes}% del mes)</div>
+    <div class="fin-summary" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div class="fin-stat">
+        <div class="fin-stat-label">Presupuesto mes</div>
+        <div class="fin-stat-val" style="color:var(--text)">${fmt(totalBudMes)}</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Gastado</div>
+        <div class="fin-stat-val" style="color:${totalGasMes>totalBudMes?'#f87171':'#4ade80'}">${fmt(totalGasMes)}</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Disponible</div>
+        <div class="fin-stat-val" style="color:${totalBudMes-totalGasMes<0?'#f87171':'#a78bfa'}">${fmt(totalBudMes-totalGasMes)}</div>
+      </div>
+    </div>
+    <div class="fin-card" style="margin-top:8px">
+      <div class="fin-row">
+        <span class="fin-label">Ritmo esperado a hoy</span>
+        <span style="font-size:0.88rem;color:var(--text-muted)">${fmt(ritmoEsp)}</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-label">Gasto real a hoy</span>
+        <span style="font-size:0.88rem;font-weight:500;color:${ritmoOk?'#4ade80':'#f87171'}">${fmt(totalGasMes)}</span>
+      </div>
+      <div class="fin-bar-wrap" style="margin-top:6px">
+        <div class="fin-bar ${totalGasMes/totalBudMes>=1?'over':totalGasMes/totalBudMes>=0.8?'warn':'ok'}"
+          style="width:${Math.min(100,Math.round(totalGasMes/totalBudMes*100))}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.75rem;color:var(--text-muted)">
+        <span>0</span><span style="color:#a78bfa">▲ hoy ${pctMes}%</span><span>${fmt(totalBudMes)}</span>
+      </div>
+      <div style="margin-top:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;background:${ritmoOk?'rgba(74,222,128,0.1)':'rgba(248,113,113,0.1)'};color:${ritmoOk?'#4ade80':'#f87171'}">
+        ${ritmoOk
+          ? `Vas bien — llevas ${fmt(Math.abs(ritmoDiff))} menos de lo esperado para este día 👍`
+          : `Vas ${fmt(ritmoDiff)} por encima del ritmo esperado para hoy ⚠️`}
+      </div>
+    </div>
+  </div>`;
+
+  // ── Alertas ──
+  if(alertas.length){
+    html += `<div class="fin-section">
+      <div class="fin-section-title">⚠️ Alertas del mes</div>`;
+    alertas.forEach(({cat,gas,lim,pct})=>{
+      const over = pct>=100;
+      html += `<div class="fin-card" style="border-left:3px solid ${over?'#f87171':'#fbbf24'};border-radius:0 12px 12px 0">
+        <div class="fin-row">
+          <span class="fin-label">${cat.icon} ${cat.name}</span>
+          <span style="font-size:0.82rem;font-weight:600;color:${over?'#f87171':'#fbbf24'}">${pct}%</span>
+        </div>
+        <div class="fin-row" style="margin-bottom:4px">
+          <span style="font-size:0.78rem;color:var(--text-muted)">Gastado ${fmt(gas)} de ${fmt(lim)}</span>
+          <span style="font-size:0.75rem;padding:2px 8px;border-radius:20px;background:${over?'rgba(248,113,113,0.15)':'rgba(251,191,36,0.15)'};color:${over?'#f87171':'#fbbf24'}">${over?'EXCEDIDO':'CERCA DEL LÍMITE'}</span>
+        </div>
+        <div class="fin-bar-wrap">
+          <div class="fin-bar ${over?'over':'warn'}" style="width:${Math.min(100,pct)}%"></div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="fin-section">
+      <div class="fin-card" style="text-align:center;padding:16px;color:#4ade80;font-size:0.88rem">
+        ✅ Sin alertas este mes — todo dentro del presupuesto
+      </div>
+    </div>`;
+  }
+
+  // ── Comparativo por grupo mes vs año ──
+  html += `<div class="fin-section">
+    <div class="fin-section-title">Comparativo por grupo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:8px 0;font-size:0.72rem;color:var(--text-muted);font-weight:600">
+      <span>Grupo</span><span style="text-align:right">Mes</span><span style="text-align:right">Año</span>
+    </div>`;
+
+  Object.entries(grupos).forEach(([grp,g])=>{
+    if(!g.gasMes && !g.gasAnio && !g.budMes) return;
+    const pctG = g.budMes>0 ? Math.min(100,Math.round(g.gasMes/g.budMes*100)) : 0;
+    const barColor = pctG>=100?'#f87171':pctG>=80?'#fbbf24':'#4ade80';
+    html += `<div class="fin-card" style="padding:10px 14px;margin-bottom:6px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;align-items:center">
+        <span style="font-size:0.82rem;font-weight:500;color:var(--text)">${grp}</span>
+        <span style="text-align:right;font-size:0.82rem;color:${g.gasMes>g.budMes&&g.budMes>0?'#f87171':'var(--text)'}">${fmt(g.gasMes)}</span>
+        <span style="text-align:right;font-size:0.82rem;color:var(--text-muted)">${fmt(g.gasAnio)}</span>
+      </div>
+      ${g.budMes?`<div class="fin-bar-wrap" style="margin-top:6px"><div class="fin-bar" style="width:${pctG}%;background:${barColor}"></div></div>`:''}
+      ${g.budMes?`<div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">Ppto mes: ${fmt(g.budMes)} · ${pctG}% usado</div>`:''}
+    </div>`;
+  });
+  html += `</div>`;
+
+  // ── Año en contexto ──
+  const mesesTransc = mes;
+  const budAnioProyect = totalBudMes * 12;
+  const ritmoAnual = totalBudMes>0 ? Math.round(totalGasAnio/(totalBudMes*mesesTransc)*100) : 0;
+  html += `<div class="fin-section">
+    <div class="fin-section-title">Año ${anio} en contexto</div>
+    <div class="fin-summary">
+      <div class="fin-stat">
+        <div class="fin-stat-label">Gastado año</div>
+        <div class="fin-stat-val" style="color:#f87171">${fmt(totalGasAnio)}</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Ppto anual</div>
+        <div class="fin-stat-val">${fmt(budAnioProyect)}</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Meses transcurridos</div>
+        <div class="fin-stat-val">${mesesTransc} de 12</div>
+      </div>
+      <div class="fin-stat">
+        <div class="fin-stat-label">Ritmo vs ppto</div>
+        <div class="fin-stat-val" style="color:${ritmoAnual>110?'#f87171':ritmoAnual>90?'#fbbf24':'#4ade80'}">${ritmoAnual}%</div>
+      </div>
+    </div>
+    <div class="fin-bar-wrap" style="height:8px;margin-top:4px">
+      <div class="fin-bar ${totalGasAnio/budAnioProyect>=1?'over':totalGasAnio/budAnioProyect>=0.8?'warn':'ok'}"
+        style="height:8px;width:${Math.min(100,Math.round(totalGasAnio/budAnioProyect*100))}%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.75rem;color:var(--text-muted)">
+      <span>Ene</span><span style="color:#a78bfa">▲ ${mesNom}</span><span>Dic</span>
+    </div>
+  </div>`;
+
+  return html;
+}
+
 async function renderPYG(anio){
   const {data:txsYear} = await sb.from('transactions').select('*').eq('user_id',user.id)
     .gte('date',`${anio}-01-01`).lte('date',`${anio}-12-31`);
@@ -1610,8 +1805,8 @@ async function checkBudgetAlert(catId, newAmt){
   const total = (txs||[]).reduce((s,t)=>s+Number(t.amount),0);
   const pct = total/Number(bud.amount)*100;
   const cat = CATS.find(c=>c.id===catId);
-  if(pct>=100) addMsg(`Parcero, ya te pasaste del presupuesto de ${cat?.name||'esa categoría'} este mes 😬 Llevas ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(total)} de ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(bud.amount)}.`,'ai');
-  else if(pct>=80) addMsg(`Ojo parcero — llevas el ${Math.round(pct)}% del presupuesto de ${cat?.name||'esa categoría'} este mes. Quedan ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(bud.amount)-total)}.`,'ai');
+  if(pct>=100) addMsg(`🚨 Parcero, ya te pasaste del presupuesto de *${cat?.name||'esa categoría'}* este mes. Llevás ${fmt(total)} y el límite era ${fmt(Number(bud.amount))}. ¿Quieres ajustar el presupuesto?`,'ai');
+  else if(pct>=80) addMsg(`⚠️ Ojo — llevás el ${Math.round(pct)}% del presupuesto de *${cat?.name||'esa categoría'}* (${fmt(total)} de ${fmt(Number(bud.amount))}). Te quedan ${fmt(Number(bud.amount)-total)} para el resto del mes.`,'ai');
 }
 
 async function processReceipt(input){
@@ -2170,6 +2365,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="fin-tab" onclick="finTab('ingresos')">Ingresos</div>
       <div class="fin-tab" onclick="finTab('pyg')">P&G</div>
       <div class="fin-tab" onclick="finTab('presupuesto')">Presupuesto</div>
+      <div class="fin-tab" onclick="finTab('analisis')">Análisis</div>
     </div>
     <div class="fin-body" id="finBody">
       <div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.9rem;">Cargando...</div>
