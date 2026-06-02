@@ -1133,23 +1133,117 @@ function toggleVoice(){
 
 // ===== FINANCE MODULE =====
 const CATS = [
-  {id:'mercado',    name:'Mercado',        icon:'🛒', color:'#4ade80'},
-  {id:'restaurante',name:'Restaurantes',   icon:'🍽️', color:'#fb923c'},
-  {id:'transporte', name:'Transporte',     icon:'🚗', color:'#60a5fa'},
-  {id:'salud',      name:'Salud',          icon:'🏥', color:'#f472b6'},
-  {id:'entrete',    name:'Entretenimiento',icon:'🎬', color:'#a78bfa'},
-  {id:'ropa',       name:'Ropa',           icon:'👕', color:'#34d399'},
-  {id:'servicios',  name:'Servicios hogar',icon:'🏠', color:'#fbbf24'},
-  {id:'educacion',  name:'Educación',      icon:'📚', color:'#38bdf8'},
-  {id:'viajes',     name:'Viajes',         icon:'✈️', color:'#e879f9'},
-  {id:'seguros',    name:'Seguros',        icon:'🛡️', color:'#94a3b8'},
-  {id:'mascota',    name:'Mascota',        icon:'🐾', color:'#f97316'},
-  {id:'ahorro',     name:'Ahorro prog.',   icon:'🏦', color:'#22d3ee'},
-  {id:'deudas',     name:'Pago deudas',    icon:'💳', color:'#f87171'},
-  {id:'inversion',  name:'Inversión',      icon:'📈', color:'#86efac'},
-  {id:'honorarios',  name:'Honorarios/nómina', icon:'👔', color:'#818cf8'},
-  {id:'transp_edu',  name:'Transporte escolar', icon:'🎒', color:'#f59e0b'},
-  {id:'otro',       name:'Otro',           icon:'📦', color:'#cbd5e1'},
+  // NIÑOS
+  {id:'ninos_salidas',   name:'Salidas niños',       icon:'🧒', color:'#f472b6', group:'Niños'},
+  {id:'ninos_paga',      name:'Paga/mesada',          icon:'🪙', color:'#f472b6', group:'Niños'},
+  {id:'ninos_medico',    name:'Médicos niños',        icon:'🩺', color:'#f472b6', group:'Niños'},
+  {id:'ninos_guarderia', name:'Guardería',            icon:'🏫', color:'#f472b6', group:'Niños'},
+  {id:'ninos_ropa',      name:'Ropa niños',           icon:'👕', color:'#f472b6', group:'Niños'},
+  {id:'ninos_colegio',   name:'Colegio/mesada',       icon:'🎒', color:'#f472b6', group:'Niños'},
+  {id:'ninos_juguetes',  name:'Juguetes',             icon:'🧸', color:'#f472b6', group:'Niños'},
+  {id:'ninos_otro',      name:'Niños — otros',        icon:'👶', color:'#f472b6', group:'Niños'},
+  // DEUDAS
+  {id:'deuda_tarjeta',   name:'Tarjetas de crédito',  icon:'💳', color:'#f87171', group:'Deudas'},
+  {id:'deuda_estudio',   name:'Préstamo estudios',    icon:'🎓', color:'#f87171', group:'Deudas'},
+  {id:'deuda_prestamo',  name:'Otros préstamos',      icon:'🏦', color:'#f87171', group:'Deudas'},
+  {id:'deuda_imp_carro', name:'Impuesto vehículo',    icon:'🚗', color:'#f87171', group:'Deudas'},
+  {id:'deuda_imp_nac',   name:'Impuestos nacionales', icon:'🏛️', color:'#f87171', group:'Deudas'},
+  {id:'deuda_otro',      name:'Deudas — otras',       icon:'📋', color:'#f87171', group:'Deudas'},
+  // EDUCACIÓN
+  {id:'edu_matricula',   name:'Matrícula',            icon:'🎓', color:'#38bdf8', group:'Educación'},
+  {id:'edu_libros',      name:'Libros educación',     icon:'📚', color:'#38bdf8', group:'Educación'},
+  {id:'edu_musica',      name:'Clases de música',     icon:'🎵', color:'#38bdf8', group:'Educación'},
+  {id:'edu_transp',      name:'Transporte escolar',   icon:'🚌', color:'#38bdf8', group:'Educación'},
+  {id:'edu_otro',        name:'Educación — otros',    icon:'✏️', color:'#38bdf8', group:'Educación'},
+  // OCIO
+  {id:'ocio_libros',     name:'Libros ocio',          icon:'📖', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_conciertos', name:'Conciertos/espectác.', icon:'🎭', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_juegos',     name:'Juegos',               icon:'🎮', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_aficiones',  name:'Aficiones/hobbies',    icon:'🎨', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_cine',       name:'Cine/teatro',          icon:'🎬', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_musica',     name:'Música streaming',     icon:'🎧', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_aire',       name:'Actividades aire libre',icon:'🏕️',color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_foto',       name:'Fotografía',           icon:'📷', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_deporte',    name:'Deporte',              icon:'⚽', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_tv',         name:'Televisión/streaming', icon:'📺', color:'#a78bfa', group:'Ocio'},
+  {id:'ocio_otro',       name:'Ocio — otros',         icon:'🎲', color:'#a78bfa', group:'Ocio'},
+  // GASTOS DIARIOS
+  {id:'dia_comida',      name:'Mercado/comida',       icon:'🛒', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_restaurante', name:'Restaurantes',         icon:'🍽️', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_higiene',     name:'Higiene personal',     icon:'🧴', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_ropa',        name:'Ropa adultos',         icon:'👔', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_lavanderia',  name:'Lavandería/tintorería',icon:'👗', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_peluqueria',  name:'Peluquería/belleza',   icon:'💇', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_suscripciones',name:'Suscripciones',       icon:'📱', color:'#4ade80', group:'Gastos diarios'},
+  {id:'dia_otro',        name:'Gastos diarios — otros',icon:'🧺',color:'#4ade80', group:'Gastos diarios'},
+  // REGALOS
+  {id:'regalo_regalo',   name:'Regalos',              icon:'🎁', color:'#fb923c', group:'Regalos'},
+  {id:'regalo_donativo', name:'Donativos/ONG',        icon:'❤️', color:'#fb923c', group:'Regalos'},
+  {id:'regalo_otro',     name:'Regalos — otros',      icon:'🎀', color:'#fb923c', group:'Regalos'},
+  // SALUD
+  {id:'salud_dentista',  name:'Dentista/oculista',    icon:'🦷', color:'#34d399', group:'Salud'},
+  {id:'salud_especialista',name:'Especialistas',      icon:'🏥', color:'#34d399', group:'Salud'},
+  {id:'salud_farmacia',  name:'Farmacia',             icon:'💊', color:'#34d399', group:'Salud'},
+  {id:'salud_urgencias', name:'Urgencias',            icon:'🚑', color:'#34d399', group:'Salud'},
+  {id:'salud_otro',      name:'Salud — otros',        icon:'⚕️', color:'#34d399', group:'Salud'},
+  // VIVIENDA
+  {id:'viv_alquiler',    name:'Alquiler/hipoteca',    icon:'🏠', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_impuesto',    name:'Impuesto propiedad',   icon:'🏛️', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_muebles',     name:'Muebles',              icon:'🪑', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_jardin',      name:'Jardín/césped',        icon:'🌿', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_hogar',       name:'Artículos hogar',      icon:'🧹', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_manten',      name:'Mantenimiento',        icon:'🔧', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_mejoras',     name:'Mejoras/remodelación', icon:'🏗️', color:'#fbbf24', group:'Vivienda'},
+  {id:'viv_otro',        name:'Vivienda — otros',     icon:'🏡', color:'#fbbf24', group:'Vivienda'},
+  // SEGUROS
+  {id:'seg_vehiculo',    name:'Seguro vehículo',      icon:'🚗', color:'#94a3b8', group:'Seguros'},
+  {id:'seg_salud',       name:'Seguro salud',         icon:'🛡️', color:'#94a3b8', group:'Seguros'},
+  {id:'seg_hogar',       name:'Seguro hogar',         icon:'🏠', color:'#94a3b8', group:'Seguros'},
+  {id:'seg_vida',        name:'Seguro vida',          icon:'💚', color:'#94a3b8', group:'Seguros'},
+  {id:'seg_otro',        name:'Seguros — otros',      icon:'📄', color:'#94a3b8', group:'Seguros'},
+  // MASCOTAS
+  {id:'masc_comida',     name:'Comida mascota',       icon:'🐾', color:'#f97316', group:'Mascotas'},
+  {id:'masc_vet',        name:'Veterinario',          icon:'🐕', color:'#f97316', group:'Mascotas'},
+  {id:'masc_juguetes',   name:'Juguetes mascota',     icon:'🦴', color:'#f97316', group:'Mascotas'},
+  {id:'masc_sumin',      name:'Suministros mascota',  icon:'🧴', color:'#f97316', group:'Mascotas'},
+  {id:'masc_otro',       name:'Mascotas — otros',     icon:'🐈', color:'#f97316', group:'Mascotas'},
+  // TECNOLOGÍA
+  {id:'tec_hosting',     name:'Dominios/hosting',     icon:'🌐', color:'#60a5fa', group:'Tecnología'},
+  {id:'tec_online',      name:'Servicios online',     icon:'☁️', color:'#60a5fa', group:'Tecnología'},
+  {id:'tec_hardware',    name:'Hardware',             icon:'💻', color:'#60a5fa', group:'Tecnología'},
+  {id:'tec_software',    name:'Software/licencias',   icon:'⚙️', color:'#60a5fa', group:'Tecnología'},
+  {id:'tec_otro',        name:'Tecnología — otros',   icon:'🖥️', color:'#60a5fa', group:'Tecnología'},
+  // TRANSPORTE
+  {id:'transp_combustible',name:'Combustible',        icon:'⛽', color:'#818cf8', group:'Transporte'},
+  {id:'transp_cuota',    name:'Cuota vehículo',       icon:'🚗', color:'#818cf8', group:'Transporte'},
+  {id:'transp_repar',    name:'Reparaciones',         icon:'🔧', color:'#818cf8', group:'Transporte'},
+  {id:'transp_matricula',name:'Matrícula/permiso',    icon:'📋', color:'#818cf8', group:'Transporte'},
+  {id:'transp_publico',  name:'Transporte público',   icon:'🚌', color:'#818cf8', group:'Transporte'},
+  {id:'transp_otro',     name:'Transporte — otros',   icon:'🛵', color:'#818cf8', group:'Transporte'},
+  // VIAJES
+  {id:'viaje_avion',     name:'Tiquetes de avión',    icon:'✈️', color:'#e879f9', group:'Viajes'},
+  {id:'viaje_hotel',     name:'Hoteles/alojamiento',  icon:'🏨', color:'#e879f9', group:'Viajes'},
+  {id:'viaje_comida',    name:'Comida en viaje',      icon:'🍴', color:'#e879f9', group:'Viajes'},
+  {id:'viaje_transp',    name:'Transporte en viaje',  icon:'🚕', color:'#e879f9', group:'Viajes'},
+  {id:'viaje_ocio',      name:'Ocio en viaje',        icon:'🏖️', color:'#e879f9', group:'Viajes'},
+  {id:'viaje_otro',      name:'Viajes — otros',       icon:'🧳', color:'#e879f9', group:'Viajes'},
+  // SERVICIOS BÁSICOS
+  {id:'serv_telefono',   name:'Teléfono',             icon:'📞', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_tv',         name:'TV/cable',             icon:'📡', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_internet',   name:'Internet',             icon:'🌐', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_luz',        name:'Electricidad',         icon:'💡', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_gas',        name:'Gas/calefacción',      icon:'🔥', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_agua',       name:'Agua',                 icon:'💧', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_basura',     name:'Basura/aseo',          icon:'🗑️', color:'#22d3ee', group:'Servicios básicos'},
+  {id:'serv_otro',       name:'Servicios — otros',    icon:'🏢', color:'#22d3ee', group:'Servicios básicos'},
+  // TRABAJO/NEGOCIO
+  {id:'neg_honorarios',  name:'Honorarios/nómina',    icon:'👔', color:'#c084fc', group:'Negocio'},
+  {id:'neg_oficina',     name:'Oficina/arriendo',     icon:'🏢', color:'#c084fc', group:'Negocio'},
+  {id:'neg_otro',        name:'Negocio — otros',      icon:'💼', color:'#c084fc', group:'Negocio'},
+  // AHORRO/INVERSIÓN
+  {id:'ahorro_prog',     name:'Ahorro programado',    icon:'🏦', color:'#86efac', group:'Ahorro'},
+  {id:'inversion',       name:'Inversión',            icon:'📈', color:'#86efac', group:'Ahorro'},
+  {id:'otro',            name:'Otro',                 icon:'📦', color:'#cbd5e1', group:'Otros'},
 ];
 
 const INC_TYPES = [
@@ -1220,19 +1314,21 @@ function renderResumen(txs, incs, budgets, totalGastos, totalIngresos, balance){
   <div class="fin-section">
     <div class="fin-section-title">Presupuesto por categoría</div>`;
 
-  CATS.forEach(cat=>{
-    const gastoCat = txs.filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
-    const bud = budgets.find(b=>b.category_id===cat.id);
-    if(!gastoCat && !bud) return;
-    const limite = bud?Number(bud.amount):0;
-    const pct = limite>0?Math.min(100,Math.round(gastoCat/limite*100)):0;
+  // Agrupar por group en resumen
+  const grpMap = {};
+  CATS.forEach(cat=>{ const g=cat.group||'Otros'; if(!grpMap[g]) grpMap[g]=[]; grpMap[g].push(cat); });
+  Object.entries(grpMap).forEach(([grp, cats])=>{
+    const grpGasto = cats.reduce((s,cat)=>s+(txs.filter(t=>t.category_id===cat.id).reduce((ss,t)=>ss+Number(t.amount),0)),0);
+    const grpBud = cats.reduce((s,cat)=>{ const b=budgets.find(x=>x.category_id===cat.id); return s+(b?Number(b.amount):0); },0);
+    if(!grpGasto && !grpBud) return;
+    const pct = grpBud>0?Math.min(100,Math.round(grpGasto/grpBud*100)):0;
     const barClass = pct>=100?'over':pct>=80?'warn':'ok';
     html += `<div class="fin-card">
       <div class="fin-row">
-        <span class="fin-label">${cat.icon} ${cat.name}</span>
-        <span class="fin-amount expense">${fmt(gastoCat)}${limite?' / '+fmt(limite):''}</span>
+        <span class="fin-label" style="font-weight:500">${grp}</span>
+        <span class="fin-amount expense">${fmt(grpGasto)}${grpBud?' / '+fmt(grpBud):''}</span>
       </div>
-      ${limite?`<div class="fin-bar-wrap"><div class="fin-bar ${barClass}" style="width:${pct}%"></div></div>`:''}
+      ${grpBud?`<div class="fin-bar-wrap"><div class="fin-bar ${barClass}" style="width:${pct}%"></div></div>`:''}
     </div>`;
   });
 
@@ -1305,15 +1401,28 @@ async function renderPresupuesto(){
   const bMap = {};
   (budgets||[]).forEach(b=>{ bMap[b.category_id]=b; });
 
-  const rows = CATS.map(cat=>{
-    const val = bMap[cat.id] ? Number(bMap[cat.id].amount) : '';
-    return `<div class="fin-card" style="display:flex;align-items:center;gap:10px;padding:10px 14px">
-      <span style="font-size:1.2rem;width:28px;text-align:center">${cat.icon}</span>
-      <span style="flex:1;font-size:0.88rem;color:var(--text)">${cat.name}</span>
-      <input type="number" class="bud-input" data-cat="${cat.id}" value="${val}"
-        placeholder="0"
-        style="width:120px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;text-align:right"
-        oninput="markBudgetDirty()">
+  // Agrupar por group
+  const groups = {};
+  CATS.forEach(cat=>{
+    const g = cat.group||'Otros';
+    if(!groups[g]) groups[g]=[];
+    groups[g].push(cat);
+  });
+  const rows = Object.entries(groups).map(([grp, cats])=>{
+    const items = cats.map(cat=>{
+      const val = bMap[cat.id] ? Number(bMap[cat.id].amount) : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:0.5px solid var(--border)">
+        <span style="font-size:1rem;width:24px;text-align:center">${cat.icon}</span>
+        <span style="flex:1;font-size:0.82rem;color:var(--text)">${cat.name}</span>
+        <input type="number" class="bud-input" data-cat="${cat.id}" value="${val}"
+          placeholder="0"
+          style="width:110px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:0.82rem;text-align:right"
+          oninput="markBudgetDirty()">
+      </div>`;
+    }).join('');
+    return `<div class="fin-card" style="padding:0;overflow:hidden;margin-bottom:10px">
+      <div style="padding:10px 14px;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);background:var(--surface)">${grp}</div>
+      ${items}
     </div>`;
   }).join('');
 
