@@ -352,6 +352,40 @@ body::before{
     .onb-persona-btn:hover { background:#2a1a55;border-color:#7c3aed; }
     @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 
+  
+#finOv{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:50;display:none;align-items:flex-end;backdrop-filter:blur(6px)}
+#finOv.on{display:flex}
+.fin-panel{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:0 0 32px}
+.fin-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:2}
+.fin-title{font-size:1.1rem;font-weight:600}
+.fin-close{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px}
+.fin-tabs{display:flex;gap:0;padding:12px 16px 0;border-bottom:1px solid var(--border)}
+.fin-tab{padding:8px 16px;font-size:0.85rem;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-muted);transition:all 0.2s}
+.fin-tab.active{border-bottom-color:#a78bfa;color:#a78bfa;font-weight:500}
+.fin-body{padding:16px}
+.fin-section{margin-bottom:20px}
+.fin-section-title{font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:10px}
+.fin-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.fin-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.fin-label{font-size:0.88rem;color:var(--text-muted)}
+.fin-amount{font-size:0.95rem;font-weight:500}
+.fin-amount.income{color:#4ade80}
+.fin-amount.expense{color:#f87171}
+.fin-amount.balance{color:#a78bfa;font-size:1.1rem}
+.fin-bar-wrap{background:var(--border);border-radius:4px;height:6px;margin-top:4px;overflow:hidden}
+.fin-bar{height:6px;border-radius:4px;transition:width 0.6s ease}
+.fin-bar.ok{background:#4ade80}
+.fin-bar.warn{background:#fbbf24}
+.fin-bar.over{background:#f87171}
+.fin-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.fin-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:center}
+.fin-stat-label{font-size:0.75rem;color:var(--text-muted);margin-bottom:4px}
+.fin-stat-val{font-size:1.15rem;font-weight:600}
+.fin-add-btn{width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a78bfa);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:500;cursor:pointer;margin-top:8px}
+.fin-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:0.88rem;box-sizing:border-box;margin-bottom:8px}
+.fin-select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:0.88rem;margin-bottom:8px}
+.fin-cam-btn{width:100%;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.88rem;color:var(--text);margin-bottom:8px}
+
   </style>
 </head>
 <body>
@@ -567,11 +601,13 @@ body::before{
       <div class="hbtn" onclick="openMemory()" title="Lo que recuerdo de ti">🧠</div>
       <div class="hbtn" onclick="openVoicePicker()" title="Cambiar voz">🎙️</div>
       <div class="hbtn" onclick="openFeedback()" title="Dar feedback">💬</div>
+      <div class="hbtn" onclick="openFinance()" title="Mis finanzas">💰</div>
       <div class="hbtn" onclick="doLogout()">↪</div>
     </div>
   </div>
 
   <div class="chips">
+    <div class="chip" onclick="openFinance()"><span class="chip-icon">💰</span>Finanzas</div>
     <div class="chip" onclick="qs('Necesito desahogarme')"><span class="chip-icon">🫂</span>Desahogarme</div>
     <div class="chip" onclick="qs('Ponme música para el momento')"><span class="chip-icon">🎵</span>Música</div>
     <div class="chip" onclick="qs('Dame un reto para hoy')"><span class="chip-icon">🎯</span>Reto</div>
@@ -1094,6 +1130,338 @@ function toggleVoice(){
 
 
 
+
+// ===== FINANCE MODULE =====
+const CATS = [
+  {id:'mercado',    name:'Mercado',        icon:'🛒', color:'#4ade80'},
+  {id:'restaurante',name:'Restaurantes',   icon:'🍽️', color:'#fb923c'},
+  {id:'transporte', name:'Transporte',     icon:'🚗', color:'#60a5fa'},
+  {id:'salud',      name:'Salud',          icon:'🏥', color:'#f472b6'},
+  {id:'entrete',    name:'Entretenimiento',icon:'🎬', color:'#a78bfa'},
+  {id:'ropa',       name:'Ropa',           icon:'👕', color:'#34d399'},
+  {id:'servicios',  name:'Servicios hogar',icon:'🏠', color:'#fbbf24'},
+  {id:'educacion',  name:'Educación',      icon:'📚', color:'#38bdf8'},
+  {id:'viajes',     name:'Viajes',         icon:'✈️', color:'#e879f9'},
+  {id:'seguros',    name:'Seguros',        icon:'🛡️', color:'#94a3b8'},
+  {id:'mascota',    name:'Mascota',        icon:'🐾', color:'#f97316'},
+  {id:'ahorro',     name:'Ahorro prog.',   icon:'🏦', color:'#22d3ee'},
+  {id:'deudas',     name:'Pago deudas',    icon:'💳', color:'#f87171'},
+  {id:'inversion',  name:'Inversión',      icon:'📈', color:'#86efac'},
+  {id:'otro',       name:'Otro',           icon:'📦', color:'#cbd5e1'},
+];
+
+const INC_TYPES = [
+  {id:'salario',    name:'Salario fijo',   icon:'💼'},
+  {id:'negocio',    name:'Negocio/emprendimiento', icon:'🚀'},
+  {id:'rendimiento',name:'Rendimientos',   icon:'📈'},
+  {id:'variable',   name:'Ingreso variable',icon:'💱'},
+  {id:'ocasional',  name:'Ganancia ocasional',icon:'🎲'},
+];
+
+let finTabActive = 'resumen';
+
+function openFinance(){
+  document.getElementById('finOv').classList.add('on');
+  renderFinTab('resumen');
+}
+function closeFinance(e){
+  if(!e||e.target===document.getElementById('finOv'))
+    document.getElementById('finOv').classList.remove('on');
+}
+function finTab(tab){
+  finTabActive = tab;
+  document.querySelectorAll('.fin-tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['resumen','gastos','ingresos','pyg'][i]===tab);
+  });
+  renderFinTab(tab);
+}
+
+async function renderFinTab(tab){
+  const body = document.getElementById('finBody');
+  body.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--text-muted);">Cargando...</div>';
+  const now = new Date();
+  const mes = now.getMonth()+1;
+  const anio = now.getFullYear();
+
+  // Cargar datos
+  const [{data:txs},{data:incs},{data:budgets}] = await Promise.all([
+    sb.from('transactions').select('*').eq('user_id',user.id)
+      .gte('date', `${anio}-${String(mes).padStart(2,'0')}-01`)
+      .order('date',{ascending:false}),
+    sb.from('incomes').select('*').eq('user_id',user.id)
+      .gte('date', `${anio}-${String(mes).padStart(2,'0')}-01`),
+    sb.from('budgets').select('*').eq('user_id',user.id)
+      .eq('year',anio)
+  ]);
+
+  const totalGastos = (txs||[]).filter(t=>t.type==='gasto').reduce((s,t)=>s+Number(t.amount),0);
+  const totalIngresos = (incs||[]).reduce((s,i)=>s+Number(i.amount),0);
+  const balance = totalIngresos - totalGastos;
+
+  if(tab==='resumen') body.innerHTML = renderResumen(txs||[], incs||[], budgets||[], totalGastos, totalIngresos, balance);
+  if(tab==='gastos')  body.innerHTML = renderGastos(txs||[], budgets||[]);
+  if(tab==='ingresos') body.innerHTML = renderIngresos(incs||[]);
+  if(tab==='pyg')     body.innerHTML = await renderPYG(anio);
+}
+
+function fmt(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n); }
+
+function renderResumen(txs, incs, budgets, totalGastos, totalIngresos, balance){
+  const balColor = balance>=0?'#4ade80':'#f87171';
+  let html = `
+  <div class="fin-summary">
+    <div class="fin-stat"><div class="fin-stat-label">Ingresos mes</div><div class="fin-stat-val" style="color:#4ade80">${fmt(totalIngresos)}</div></div>
+    <div class="fin-stat"><div class="fin-stat-label">Gastos mes</div><div class="fin-stat-val" style="color:#f87171">${fmt(totalGastos)}</div></div>
+    <div class="fin-stat" style="grid-column:span 2"><div class="fin-stat-label">Balance</div><div class="fin-stat-val" style="color:${balColor}">${fmt(balance)}</div></div>
+  </div>
+  <div class="fin-section">
+    <div class="fin-section-title">Presupuesto por categoría</div>`;
+
+  CATS.forEach(cat=>{
+    const gastoCat = txs.filter(t=>t.category_id===cat.id).reduce((s,t)=>s+Number(t.amount),0);
+    const bud = budgets.find(b=>b.category_id===cat.id);
+    if(!gastoCat && !bud) return;
+    const limite = bud?Number(bud.amount):0;
+    const pct = limite>0?Math.min(100,Math.round(gastoCat/limite*100)):0;
+    const barClass = pct>=100?'over':pct>=80?'warn':'ok';
+    html += `<div class="fin-card">
+      <div class="fin-row">
+        <span class="fin-label">${cat.icon} ${cat.name}</span>
+        <span class="fin-amount expense">${fmt(gastoCat)}${limite?' / '+fmt(limite):''}</span>
+      </div>
+      ${limite?`<div class="fin-bar-wrap"><div class="fin-bar ${barClass}" style="width:${pct}%"></div></div>`:''}
+    </div>`;
+  });
+
+  html += `</div>
+  <div class="fin-section">
+    <div class="fin-section-title">Agregar gasto rápido</div>
+    <input class="fin-input" id="newAmt" type="number" placeholder="Monto (ej: 45000)">
+    <input class="fin-input" id="newDesc" type="text" placeholder="Descripción (ej: Almuerzo)">
+    <select class="fin-select" id="newCat">
+      ${CATS.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+    </select>
+    <button class="fin-cam-btn" onclick="document.getElementById('receiptInput').click()">📷 Tomar foto de recibo</button>
+    <button class="fin-add-btn" onclick="addExpense()">+ Registrar gasto</button>
+  </div>`;
+  return html;
+}
+
+function renderGastos(txs, budgets){
+  let html = `<div class="fin-section"><div class="fin-section-title">Últimas transacciones</div>`;
+  if(!txs.length) html += '<div style="color:var(--text-muted);font-size:0.88rem;text-align:center;padding:20px 0">Sin gastos este mes</div>';
+  txs.slice(0,30).forEach(t=>{
+    const cat = CATS.find(c=>c.id===t.category_id)||{icon:'📦',name:'Otro'};
+    html += `<div class="fin-card">
+      <div class="fin-row">
+        <span class="fin-label">${cat.icon} ${t.merchant||t.description||'Gasto'}</span>
+        <span class="fin-amount expense">${fmt(t.amount)}</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--text-muted)">${t.date} · ${cat.name}</div>
+    </div>`;
+  });
+  html += `</div>
+  <div class="fin-section">
+    <div class="fin-section-title">Nuevo gasto</div>
+    <input class="fin-input" id="newAmt" type="number" placeholder="Monto">
+    <input class="fin-input" id="newDesc" type="text" placeholder="Descripción">
+    <select class="fin-select" id="newCat">${CATS.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}</select>
+    <button class="fin-cam-btn" onclick="document.getElementById('receiptInput').click()">📷 Foto de recibo</button>
+    <button class="fin-add-btn" onclick="addExpense()">+ Agregar</button>
+  </div>`;
+  return html;
+}
+
+function renderIngresos(incs){
+  let html = `<div class="fin-section"><div class="fin-section-title">Ingresos del mes</div>`;
+  incs.forEach(i=>{
+    const t = INC_TYPES.find(x=>x.id===i.type)||{icon:'💰',name:i.type};
+    html += `<div class="fin-card">
+      <div class="fin-row">
+        <span class="fin-label">${t.icon} ${i.description}</span>
+        <span class="fin-amount income">${fmt(i.amount)}</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--text-muted)">${i.date} · ${t.name}</div>
+    </div>`;
+  });
+  html += `</div>
+  <div class="fin-section">
+    <div class="fin-section-title">Registrar ingreso</div>
+    <input class="fin-input" id="incAmt" type="number" placeholder="Monto">
+    <input class="fin-input" id="incDesc" type="text" placeholder="Descripción (ej: Dividendos AiYo)">
+    <select class="fin-select" id="incType">${INC_TYPES.map(t=>`<option value="${t.id}">${t.icon} ${t.name}</option>`).join('')}</select>
+    <button class="fin-add-btn" onclick="addIncome()">+ Registrar ingreso</button>
+  </div>`;
+  return html;
+}
+
+async function renderPYG(anio){
+  const {data:txsYear} = await sb.from('transactions').select('*').eq('user_id',user.id)
+    .gte('date',`${anio}-01-01`).lte('date',`${anio}-12-31`);
+  const {data:incsYear} = await sb.from('incomes').select('*').eq('user_id',user.id)
+    .gte('date',`${anio}-01-01`).lte('date',`${anio}-12-31`);
+
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  let totalIng=0, totalGas=0;
+  let rows = meses.map((m,i)=>{
+    const mes = i+1;
+    const ing = (incsYear||[]).filter(x=>new Date(x.date).getMonth()===i).reduce((s,x)=>s+Number(x.amount),0);
+    const gas = (txsYear||[]).filter(x=>x.type==='gasto'&&new Date(x.date).getMonth()===i).reduce((s,x)=>s+Number(x.amount),0);
+    totalIng+=ing; totalGas+=gas;
+    const util = ing-gas;
+    return `<tr>
+      <td style="padding:8px 4px;font-size:0.82rem;color:var(--text-muted)">${m}</td>
+      <td style="padding:8px 4px;font-size:0.82rem;text-align:right;color:#4ade80">${ing?fmt(ing):'-'}</td>
+      <td style="padding:8px 4px;font-size:0.82rem;text-align:right;color:#f87171">${gas?fmt(gas):'-'}</td>
+      <td style="padding:8px 4px;font-size:0.82rem;text-align:right;color:${util>=0?'#a78bfa':'#f87171'};font-weight:500">${ing||gas?fmt(util):'-'}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="fin-section">
+    <div class="fin-section-title">P&G ${anio}</div>
+    <div class="fin-card" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="padding:8px 4px;font-size:0.78rem;color:var(--text-muted);text-align:left">Mes</th>
+          <th style="padding:8px 4px;font-size:0.78rem;color:#4ade80;text-align:right">Ingresos</th>
+          <th style="padding:8px 4px;font-size:0.78rem;color:#f87171;text-align:right">Gastos</th>
+          <th style="padding:8px 4px;font-size:0.78rem;color:#a78bfa;text-align:right">Utilidad</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="border-top:1px solid var(--border)">
+          <td style="padding:10px 4px;font-size:0.85rem;font-weight:600">Total</td>
+          <td style="padding:10px 4px;font-size:0.85rem;font-weight:600;text-align:right;color:#4ade80">${fmt(totalIng)}</td>
+          <td style="padding:10px 4px;font-size:0.85rem;font-weight:600;text-align:right;color:#f87171">${fmt(totalGas)}</td>
+          <td style="padding:10px 4px;font-size:0.85rem;font-weight:600;text-align:right;color:${totalIng-totalGas>=0?'#a78bfa':'#f87171'}">${fmt(totalIng-totalGas)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="fin-section">
+    <div class="fin-section-title">Por categoría — ${anio}</div>
+    ${CATS.map(cat=>{
+      const tot = (txsYear||[]).filter(t=>t.category_id===cat.id&&t.type==='gasto').reduce((s,t)=>s+Number(t.amount),0);
+      if(!tot) return '';
+      return `<div class="fin-card"><div class="fin-row"><span class="fin-label">${cat.icon} ${cat.name}</span><span class="fin-amount expense">${fmt(tot)}</span></div></div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function addExpense(){
+  const amt = parseFloat(document.getElementById('newAmt')?.value);
+  const desc = document.getElementById('newDesc')?.value?.trim();
+  const cat = document.getElementById('newCat')?.value;
+  if(!amt||!desc){alert('Ingresa monto y descripción');return;}
+
+  // Montos grandes → preguntar tipo
+  if(amt >= 500000){
+    const tipo = await askExpenseType(desc, amt);
+    if(tipo==='activo'){
+      await sb.from('transactions').insert({user_id:user.id,category_id:cat,description:desc,amount:amt,type:'activo',date:new Date().toISOString().slice(0,10)});
+      await sb.from('assets').insert({user_id:user.id,name:desc,value:amt,category:'otro',purchase_date:new Date().toISOString().slice(0,10)});
+      renderFinTab(finTabActive);
+      return;
+    }
+  }
+  await sb.from('transactions').insert({user_id:user.id,category_id:cat,description:desc,amount:amt,type:'gasto',date:new Date().toISOString().slice(0,10)});
+  checkBudgetAlert(cat, amt);
+  renderFinTab(finTabActive);
+}
+
+function askExpenseType(desc, amt){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML=`<div style="background:var(--bg);border-radius:16px;padding:24px;max-width:320px;width:100%">
+      <div style="font-size:1rem;font-weight:600;margin-bottom:8px">Monto grande detectado</div>
+      <div style="font-size:0.88rem;color:var(--text-muted);margin-bottom:20px">"${desc}" por ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(amt)} — ¿cómo lo registro?</div>
+      <button onclick="this.closest('div[style]').remove();document.body.querySelector('.type-overlay')?.remove()" style="display:none"></button>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="window._expType='gasto';this.closest('[style*=fixed]').remove()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:0.88rem">🛒 Gasto corriente (mercado, ropa...)</button>
+        <button onclick="window._expType='activo';this.closest('[style*=fixed]').remove()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:0.88rem">🏠 Activo (nevera, TV, mueble...)</button>
+        <button onclick="window._expType='deuda_pago';this.closest('[style*=fixed]').remove()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-size:0.88rem">💳 Pago de deuda</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const check = setInterval(()=>{
+      if(!document.body.contains(overlay)||!overlay.isConnected){clearInterval(check);resolve(window._expType||'gasto');window._expType=null;}
+    },200);
+  });
+}
+
+async function addIncome(){
+  const amt = parseFloat(document.getElementById('incAmt')?.value);
+  const desc = document.getElementById('incDesc')?.value?.trim();
+  const type = document.getElementById('incType')?.value;
+  if(!amt||!desc){alert('Ingresa monto y descripción');return;}
+  await sb.from('incomes').insert({user_id:user.id,description:desc,amount:amt,type,date:new Date().toISOString().slice(0,10)});
+  renderFinTab(finTabActive);
+}
+
+async function checkBudgetAlert(catId, newAmt){
+  const now = new Date();
+  const mes = now.getMonth()+1;
+  const anio = now.getFullYear();
+  const {data:bud} = await sb.from('budgets').select('amount').eq('user_id',user.id).eq('category_id',catId).single();
+  if(!bud) return;
+  const {data:txs} = await sb.from('transactions').select('amount').eq('user_id',user.id).eq('category_id',catId).eq('type','gasto')
+    .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`);
+  const total = (txs||[]).reduce((s,t)=>s+Number(t.amount),0);
+  const pct = total/Number(bud.amount)*100;
+  const cat = CATS.find(c=>c.id===catId);
+  if(pct>=100) addMsg(`Parcero, ya te pasaste del presupuesto de ${cat?.name||'esa categoría'} este mes 😬 Llevas ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(total)} de ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(bud.amount)}.`,'ai');
+  else if(pct>=80) addMsg(`Ojo parcero — llevas el ${Math.round(pct)}% del presupuesto de ${cat?.name||'esa categoría'} este mes. Quedan ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(bud.amount)-total)}.`,'ai');
+}
+
+async function processReceipt(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async e=>{
+    const b64 = e.target.result.split(',')[1];
+    addMsg('📷 Procesando recibo...','ai');
+    document.getElementById('finOv').classList.remove('on');
+
+    const K = cfg.key||'';
+    try{
+      const resp = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':K,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({
+          model:'claude-haiku-4-5-20251001',max_tokens:300,
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:file.type,data:b64}},
+            {type:'text',text:'Analiza este recibo. Responde SOLO con JSON válido sin markdown: {"monto":45000,"comercio":"Nombre del comercio","fecha":"2026-06-02","categoria":"mercado","descripcion":"descripción breve"}. Categorías válidas: '+CATS.map(c=>c.id).join(', ')+'. Si no lees algo, usa null.'}
+          ]}]
+        })
+      });
+      const d = await resp.json();
+      const txt = d.content?.[0]?.text||'{}';
+      const data = JSON.parse(txt.replace(/```json|```/g,'').trim());
+      if(data.monto){
+        await sb.from('transactions').insert({
+          user_id:user.id,
+          category_id:data.categoria||'otro',
+          description:data.descripcion||data.comercio||'Recibo',
+          merchant:data.comercio,
+          amount:data.monto,
+          type:'gasto',
+          date:data.fecha||new Date().toISOString().slice(0,10)
+        });
+        checkBudgetAlert(data.categoria||'otro', data.monto);
+        addMsg(`Listo! Registré ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(data.monto)} en ${data.comercio||'el comercio'} — categoría ${CATS.find(c=>c.id===data.categoria)?.name||data.categoria}. ¿Todo correcto?`,'ai');
+      } else {
+        addMsg('No pude leer bien el recibo. ¿Me dices el monto manualmente?','ai');
+      }
+    }catch(err){
+      addMsg('Tuve un problema leyendo el recibo. ¿Me dices el monto?','ai');
+    }
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded',async()=>{
   try{
@@ -1585,6 +1953,30 @@ document.addEventListener('DOMContentLoaded', () => {
     <div id="vpSaved" style="display:none;text-align:center;margin-top:16px;color:#a78bfa;font-size:0.88rem;">✅ Voz actualizada</div>
   </div>
 </div>
+
+
+<!-- FINANCE PANEL -->
+<div id="finOv" onclick="closeFinance(event)">
+  <div class="fin-panel">
+    <div class="pnl-handle"></div>
+    <div class="fin-header">
+      <span class="fin-title">💰 Mis Finanzas</span>
+      <div class="fin-close" onclick="closeFinance()">✕</div>
+    </div>
+    <div class="fin-tabs">
+      <div class="fin-tab active" onclick="finTab('resumen')">Resumen</div>
+      <div class="fin-tab" onclick="finTab('gastos')">Gastos</div>
+      <div class="fin-tab" onclick="finTab('ingresos')">Ingresos</div>
+      <div class="fin-tab" onclick="finTab('pyg')">P&G</div>
+    </div>
+    <div class="fin-body" id="finBody">
+      <div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.9rem;">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Cámara recibo (input oculto) -->
+<input type="file" id="receiptInput" accept="image/*" capture="environment" style="display:none" onchange="processReceipt(this)">
 
 </body>
 </html>
