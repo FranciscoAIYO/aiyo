@@ -1280,15 +1280,25 @@ async function renderFinTab(tab){
   const anio = now.getFullYear();
 
   // Cargar datos
-  const [{data:txs},{data:incs},{data:budgets}] = await Promise.all([
-    sb.from('transactions').select('*').eq('user_id',user.id)
-      .gte('date', `${anio}-${String(mes).padStart(2,'0')}-01`)
-      .order('date',{ascending:false}),
-    sb.from('incomes').select('*').eq('user_id',user.id)
-      .gte('date', `${anio}-${String(mes).padStart(2,'0')}-01`),
-    sb.from('budgets').select('*').eq('user_id',user.id)
-      .eq('year',anio)
-  ]);
+  let txs=[], incs=[], budgets=[];
+  try{
+    const [r1,r2,r3] = await Promise.all([
+      sb.from('transactions').select('*').eq('user_id',user.id)
+        .gte('date', `${anio}-${String(mes).padStart(2,'0')}-01`)
+        .order('date',{ascending:false}),
+      sb.from('incomes').select('*').eq('user_id',user.id)
+        .gte('date', `${anio}-${String(mes).padStart(2,'0')}-01`),
+      sb.from('budgets').select('*').eq('user_id',user.id)
+        .eq('year',anio)
+    ]);
+    if(r1.error) console.error('transactions error:',r1.error);
+    if(r2.error) console.error('incomes error:',r2.error);
+    if(r3.error) console.error('budgets error:',r3.error);
+    txs = r1.data||[]; incs = r2.data||[]; budgets = r3.data||[];
+  }catch(e){
+    body.innerHTML=`<div style="padding:20px;color:#f87171;font-size:0.88rem">Error cargando datos: ${e.message}<br><br>Verifica que las tablas existan en Supabase.</div>`;
+    return;
+  }
 
   const totalGastos = (txs||[]).filter(t=>t.type==='gasto').reduce((s,t)=>s+Number(t.amount),0);
   const totalIngresos = (incs||[]).reduce((s,i)=>s+Number(i.amount),0);
@@ -1472,10 +1482,20 @@ async function saveBudgets(){
     const cat = inp.dataset.cat;
     const amt = parseInput(inp.value);
     if(amt>0){
-      ops.push(sb.from('budgets').upsert({
-        user_id:user.id, category_id:cat, amount:amt,
-        period:'monthly', year:anio, updated_at:new Date().toISOString()
-      },{onConflict:'user_id,category_id,year,period'}));
+      // Primero intentar update, si no existe hacer insert
+      ops.push(
+        sb.from('budgets')
+          .select('id')
+          .eq('user_id',user.id).eq('category_id',cat).eq('year',anio).eq('period','monthly')
+          .single()
+          .then(({data:ex})=>{
+            if(ex?.id){
+              return sb.from('budgets').update({amount:amt,updated_at:new Date().toISOString()}).eq('id',ex.id);
+            } else {
+              return sb.from('budgets').insert({user_id:user.id,category_id:cat,amount:amt,period:'monthly',year:anio});
+            }
+          })
+      );
     }
   });
   await Promise.all(ops);
@@ -1488,11 +1508,14 @@ async function saveBudgets(){
 async function saveExpectedIncome(){
   const amt = parseInput(document.getElementById('expectedIncome')?.value);
   if(!amt) return;
-  await sb.from('budgets').upsert({
-    user_id:user.id, category_id:'__expected_income__',
-    amount:amt, period:'monthly', year:new Date().getFullYear(),
-    updated_at:new Date().toISOString()
-  },{onConflict:'user_id,category_id,year,period'});
+  const anioNow = new Date().getFullYear();
+  const {data:exInc} = await sb.from('budgets').select('id')
+    .eq('user_id',user.id).eq('category_id','__expected_income__').eq('year',anioNow).single();
+  if(exInc?.id){
+    await sb.from('budgets').update({amount:amt,updated_at:new Date().toISOString()}).eq('id',exInc.id);
+  } else {
+    await sb.from('budgets').insert({user_id:user.id,category_id:'__expected_income__',amount:amt,period:'monthly',year:anioNow});
+  }
   const saved = document.getElementById('budSaved');
   if(saved){ saved.style.display='block'; setTimeout(()=>saved.style.display='none',2500); }
 }
@@ -1507,15 +1530,22 @@ async function renderAnalisis(){
   const diaHoy = now.getDate();
   const pctMes = Math.round(diaHoy/diasMes*100);
 
-  const [{data:txsMes},{data:txsAnio},{data:budgets},{data:incs}] = await Promise.all([
-    sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
-      .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`),
-    sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
-      .gte('date',`${anio}-01-01`),
-    sb.from('budgets').select('*').eq('user_id',user.id).eq('year',anio),
-    sb.from('incomes').select('*').eq('user_id',user.id)
-      .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`)
-  ]);
+  let txsMes=[], txsAnio=[], budgets=[], incs=[];
+  try{
+    const [r1,r2,r3,r4] = await Promise.all([
+      sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
+        .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`),
+      sb.from('transactions').select('*').eq('user_id',user.id).eq('type','gasto')
+        .gte('date',`${anio}-01-01`),
+      sb.from('budgets').select('*').eq('user_id',user.id).eq('year',anio),
+      sb.from('incomes').select('*').eq('user_id',user.id)
+        .gte('date',`${anio}-${String(mes).padStart(2,'0')}-01`)
+    ]);
+    txsMes=r1.data||[]; txsAnio=r2.data||[]; budgets=r3.data||[]; incs=r4.data||[];
+    if(r1.error||r2.error||r3.error) console.error('Análisis errors:',r1.error,r2.error,r3.error);
+  }catch(e){
+    return `<div style="padding:20px;color:#f87171;font-size:0.88rem">Error: ${e.message}</div>`;
+  }
 
   const bMap = {};
   (budgets||[]).forEach(b=>{ bMap[b.category_id]=b; });
@@ -1759,7 +1789,11 @@ async function addExpense(){
       return;
     }
   }
-  await sb.from('transactions').insert({user_id:user.id,category_id:cat,description:desc,amount:amt,type:'gasto',date:new Date().toISOString().slice(0,10)});
+  const {error:insErr} = await sb.from('transactions').insert({
+    user_id:user.id, category_id:cat, description:desc,
+    amount:amt, type:'gasto', date:new Date().toISOString().slice(0,10)
+  });
+  if(insErr){ alert('Error guardando: '+insErr.message); return; }
   checkBudgetAlert(cat, amt);
   renderFinTab(finTabActive);
 }
