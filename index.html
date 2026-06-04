@@ -1081,6 +1081,7 @@ function setMood(m){
 }
 function toggleMic(){
   if(isSpeaking) return;  // No escuchar mientras AiYo habla
+  if(Date.now()-speakEndTime < 1000) return;  // Muy cerca del fin — esperar eco
   if(lstn){stopMic();return;}
   if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){alert('Tu navegador no soporta voz');return;}
   // Init AudioContext on user interaction to unlock audio
@@ -1090,23 +1091,36 @@ function toggleMic(){
   rec.lang='es-ES';
   rec.interimResults=true;
   rec.continuous=false;
+  rec.maxAlternatives=1;
   rec.onresult=e=>{
     const transcript=Array.from(e.results).map(r=>r[0].transcript).join('');
     document.getElementById('ti').value=transcript;
     if(e.results[e.results.length-1].isFinal){
       stopMic();
+      const txt = transcript.trim();
+      // Ignorar si es muy corto (ruido) o solo sonidos sin sentido
+      if(txt.length < 3) return;
+      // Ignorar si es solo una palabra muy genérica de ruido
+      const noiseWords = ['sí','si','no','ah','eh','mm','hmm','ok','a','e','o'];
+      if(txt.split(' ').length === 1 && noiseWords.includes(txt.toLowerCase())) return;
       setTimeout(()=>send(),300);
     }
   };
   rec.onerror=()=>stopMic();
   rec.onend=()=>stopMic();
+  // Pedir micrófono con cancelación de eco y supresión de ruido
+  try{
+    await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+    });
+  }catch(e){ console.warn('getUserMedia constraint:', e); }
   rec.start();lstn=true;document.getElementById('micB').classList.add('on');
 }
 function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB').classList.remove('on');}
 
 
 // ===== ELEVENLABS VOICE =====
-let audioQueue=[], isSpeaking=false;
+let audioQueue=[], isSpeaking=false, speakEndTime=0;
 
 async function speak(text){
   if(!voiceEnabled) return;
@@ -1151,8 +1165,8 @@ async function speak(text){
       const audio=new Audio(url);
       audio.onended=()=>{
         URL.revokeObjectURL(url);
-        isSpeaking=false;
-        if(voiceEnabled) setTimeout(()=>toggleMic(),400);
+        isSpeaking=false; speakEndTime=Date.now();
+        if(voiceEnabled) setTimeout(()=>toggleMic(),1200);  // esperar eco
       };
       isSpeaking=true;
       await audio.play();
@@ -1180,7 +1194,7 @@ async function speak(text){
   isSpeaking=true;
   utter.onend=()=>{
     isSpeaking=false;
-    if(voiceEnabled) setTimeout(()=>toggleMic(),400);
+    if(voiceEnabled) setTimeout(()=>toggleMic(),1200);  // esperar eco
   };
   speechSynthesis.speak(utter);
 }
