@@ -596,13 +596,13 @@ body::before{
             ▶ Escuchar
           </button>
         </button>
-        <button class="onb-persona-btn" id="voiceFemaleBtn" onclick="selectVoice('female','YM9MbhkdpZ8JR7EP49hA')">
+        <button class="onb-persona-btn" id="voiceFemaleBtn" onclick="selectVoice('female','3ttovAt5bt3Kk38UGIob')">
           <span style="font-size:1.5rem;">👩</span>
           <div style="flex:1;">
             <div style="font-weight:600;color:#fff;">Femenina</div>
             <div style="font-size:0.82rem;color:#aaa;">Cálida y expresiva</div>
           </div>
-          <button onclick="event.stopPropagation();previewVoice('YM9MbhkdpZ8JR7EP49hA','Hola! Soy AiYo, tu nueva compañera de vida.')"
+          <button onclick="event.stopPropagation();previewVoice('3ttovAt5bt3Kk38UGIob','Hola! Soy AiYo, tu nueva compañera de vida.')"
             style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">
             ▶ Escuchar
           </button>
@@ -764,7 +764,7 @@ async function loadUser(){
   try{
     const {data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
     if(error||!p?.name){go('setup');return;}
-    cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'9ZVfdvBemUaGEWZgCiv0',voiceGender:p.voice_id==='YM9MbhkdpZ8JR7EP49hA'?'female':'male'};
+    cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'9ZVfdvBemUaGEWZgCiv0',voiceGender:p.voice_id==='3ttovAt5bt3Kk38UGIob'?'female':'male'};
     isPro=p.is_pro||false;
     const {data:ms}=await sb.from('memories').select('content').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
     mems=(ms||[]).map(m=>m.content);
@@ -2243,7 +2243,7 @@ function openVoicePicker(){
   // Marcar la voz actual
   const cur = cfg.voiceId || '9ZVfdvBemUaGEWZgCiv0';
   document.getElementById('vpMaleBtn').style.borderColor = cur==='9ZVfdvBemUaGEWZgCiv0' ? '#7c3aed' : '#3a3a6a';
-  document.getElementById('vpFemaleBtn').style.borderColor = cur==='YM9MbhkdpZ8JR7EP49hA' ? '#7c3aed' : '#3a3a6a';
+  document.getElementById('vpFemaleBtn').style.borderColor = cur==='3ttovAt5bt3Kk38UGIob' ? '#7c3aed' : '#3a3a6a';
   document.getElementById('vpSaved').style.display='none';
 }
 function closeVoicePicker(){
@@ -2522,14 +2522,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <button onclick="event.stopPropagation();previewVoice('9ZVfdvBemUaGEWZgCiv0','Hola parcero! Soy AiYo, tu amigo de vida.')"
           style="background:#2a2a4a;border:none;color:#a78bfa;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.85rem;">▶ Escuchar</button>
       </div>
-      <div id="vpFemaleBtn" onclick="pickVoice('female','YM9MbhkdpZ8JR7EP49hA')"
+      <div id="vpFemaleBtn" onclick="pickVoice('female','3ttovAt5bt3Kk38UGIob')"
         style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.2s;">
         <span style="font-size:1.8rem;">👩</span>
         <div style="flex:1;">
           <div style="font-weight:600;color:#fff;">Femenina</div>
           <div style="font-size:0.82rem;color:#aaa;">Cálida y expresiva</div>
         </div>
-        <button onclick="event.stopPropagation();previewVoice('YM9MbhkdpZ8JR7EP49hA','Hola! Soy AiYo, tu amiga de vida. Aquí para acompañarte siempre.')"
+        <button onclick="event.stopPropagation();previewVoice('3ttovAt5bt3Kk38UGIob','Hola! Soy AiYo, tu amiga de vida. Aquí para acompañarte siempre.')"
           style="background:#2a2a4a;border:none;color:#a78bfa;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.85rem;">▶ Escuchar</button>
       </div>
     </div>
