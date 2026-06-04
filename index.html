@@ -1126,7 +1126,6 @@ let audioQueue=[], isSpeaking=false, speakEndTime=0;
 
 async function speak(text){
   if(!voiceEnabled) return;
-  const ELEVEN_KEY=['ec0eea054aa9002822cf4df8a0b73280ff0ca28','ee7cc990f50968ad898e93ff1'].join('');
   const VOICE_ID=cfg.voiceId||'9ZVfdvBemUaGEWZgCiv0';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
@@ -1151,14 +1150,10 @@ async function speak(text){
   if(!clean||clean.length<2) return;
   console.log('Speaking:',clean.slice(0,50));
   try{
-    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,{
+    const r=await fetch('/api/tts',{
       method:'POST',
-      headers:{'Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
-      body:JSON.stringify({
-        text:clean.slice(0,500),
-        model_id:'eleven_turbo_v2_5',
-        voice_settings:{stability:0.5,similarity_boost:0.8}
-      })
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:clean.slice(0,500),voiceId:VOICE_ID})
     });
     console.log('ElevenLabs status:',r.status);
     if(r.ok){
