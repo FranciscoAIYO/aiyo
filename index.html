@@ -1126,7 +1126,7 @@ let audioQueue=[], isSpeaking=false, speakEndTime=0;
 
 async function speak(text){
   if(!voiceEnabled) return;
-  const ELEVEN_KEY=['sk_760494e67ffc0f295','d8602844556eb2ca112f73cc72a4a80'].join('');
+  const ELEVEN_KEY=['5f04a399ccda950df8f0fdc0d98ce56648555','486f779ed632bbaf81d5cd33fe1'].join('');
   const VOICE_ID=cfg.voiceId||'9ZVfdvBemUaGEWZgCiv0';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
