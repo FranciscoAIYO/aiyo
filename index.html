@@ -702,7 +702,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
 
 // ===== STATE =====
-let cfg={name:'',bio:'',key:'',aiName:'AiYo',elevenKey:'sk_2d6c2db6b7c426834943258deccd6153fa6b3715b55deff2',voiceId:'EXAVITQu4vr4xnSDxMaL'},
+let cfg={name:'',bio:'',key:'',aiName:'AiYo',elevenKey:'sk_2d6c2db6b7c426834943258deccd6153fa6b3715b55deff2',voiceId:'9ZVfdvBemUaGEWZgCiv0'},
     hist=[],mems=[],mood='',user=null,isPro=false,
     msgs=0,rec=null,lstn=false,authTab='login';
 
@@ -758,7 +758,7 @@ async function loadUser(){
   try{
     const {data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
     if(error||!p?.name){go('setup');return;}
-    cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'9ZVfdvBemUaGEWZgCiv0'};
+    cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'9ZVfdvBemUaGEWZgCiv0',voiceGender:p.voice_id==='YM9MbhkdpZ8JR7EP49hA'?'female':'male'};
     isPro=p.is_pro||false;
     const {data:ms}=await sb.from('memories').select('content').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
     mems=(ms||[]).map(m=>m.content);
@@ -2231,7 +2231,7 @@ function pickVoice(gender, voiceId){
   cfg.voiceGender = gender;
   localStorage.setItem('aiyo_cfg', JSON.stringify(cfg));
   // Guardar en Supabase también
-  if(user) sb.from('profiles').update({voice_id: voiceId}).eq('id', user.id);
+  if(user) sb.from('profiles').update({voice_id: voiceId, voice_gender: gender}).eq('id', user.id);
   document.getElementById('vpMaleBtn').style.borderColor = gender==='male' ? '#7c3aed' : '#3a3a6a';
   document.getElementById('vpFemaleBtn').style.borderColor = gender==='female' ? '#7c3aed' : '#3a3a6a';
   document.getElementById('vpSaved').style.display='block';
