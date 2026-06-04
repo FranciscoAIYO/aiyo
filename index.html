@@ -192,7 +192,9 @@ body::before{
 .pulse{width:5px;height:5px;border-radius:50%;background:var(--mint);
   animation:pulseDot 2s ease-in-out infinite;flex-shrink:0}
 @keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.3;transform:scale(0.7)}}
-.hdr-btns{display:flex;gap:6px}
+.hdr-btns{display:flex;gap:6px;flex-shrink:0}
+.hmenu-item{padding:10px 14px;font-size:0.88rem;color:var(--text);cursor:pointer;border-radius:8px;white-space:nowrap}
+.hmenu-item:hover{background:var(--raised)}
 .hbtn{width:34px;height:34px;border-radius:50%;background:var(--surface);
   border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
   font-size:15px;cursor:pointer;transition:all 0.2s;flex-shrink:0}
@@ -643,13 +645,17 @@ body::before{
       <div class="hdr-status" id="hdrStatus"><span class="pulse"></span>Contigo siempre</div>
     </div>
     <div class="hdr-btns">
-      <div class="hbtn" id="voiceToggle" onclick="toggleVoice()">🔊</div>
-      <div class="hbtn" onclick="openMood()">💭</div>
-      <div class="hbtn" onclick="openMemory()" title="Lo que recuerdo de ti">🧠</div>
-      <div class="hbtn" onclick="openVoicePicker()" title="Cambiar voz">🎙️</div>
-      <div class="hbtn" onclick="openFeedback()" title="Dar feedback">💬</div>
-      <div class="hbtn" onclick="openFinance()" title="Mis finanzas">💰</div>
-      <div class="hbtn" onclick="doLogout()">↪</div>
+      <div class="hbtn" id="voiceToggle" onclick="toggleVoice()" title="Voz">🔊</div>
+      <div class="hbtn" onclick="openFinance()" title="Finanzas">💰</div>
+      <div class="hbtn" onclick="toggleHdrMenu()" title="Más opciones" id="hdrMenuBtn">⋯</div>
+    </div>
+    <!-- Menú desplegable -->
+    <div id="hdrMenu" style="display:none;position:absolute;top:56px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px;z-index:100;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+      <div class="hmenu-item" onclick="openMood();toggleHdrMenu()">💭 Estado de ánimo</div>
+      <div class="hmenu-item" onclick="openMemory();toggleHdrMenu()">🧠 Mis recuerdos</div>
+      <div class="hmenu-item" onclick="openVoicePicker();toggleHdrMenu()">🎙️ Cambiar voz</div>
+      <div class="hmenu-item" onclick="openFeedback();toggleHdrMenu()">💬 Dar feedback</div>
+      <div class="hmenu-item" style="border-top:0.5px solid var(--border);margin-top:4px;padding-top:8px;color:#f87171" onclick="doLogout()">↪ Salir</div>
     </div>
   </div>
 
@@ -939,6 +945,8 @@ CÓMO HABLAS — esto es lo más importante:
 Con colombianos: parcero, bacano, qué más, ey. Con otros adaptas el tono según cómo hablen ellos.
 
 Eres la IA para las personas que no quieren aprender IA. Solo funcionas. Sin fricción.
+
+Tienes voz — puedes hablar. El usuario puede activarla con el botón 🔊 del header o el micrófono 🎤. Si te preguntan si puedes hablar, di que sí — con el botón de voz activado te escuchan.
 
 L\u00cdMITES — como buen amigo, sabes cu\u00e1ndo derivar:\n- Si ${cfg.name} menciona s\u00edntomas f\u00edsicos, medicamentos o pide diagn\u00f3stico: no des consejos m\u00e9dicos. Di algo como \"eso no suena bien, yo no soy m\u00e9dico y no quiero equivocarme contigo — ve a que te revisen, \u00bfs\u00ed? Yo aqu\u00ed sigo.\"\n- Si menciona pensamientos de hacerse da\u00f1o o crisis emocional seria: muestra que te importa y sugiere hablar con alguien de confianza o la L\u00ednea 106 (Colombia).\n- Si menciona problemas legales serios: sugiere un abogado.\n- Si pide consejo sobre decisiones financieras complejas: sugiere un asesor.\nEn todos estos casos mant\u00e9n el tono de amigo — nunca suenes a disclaimer corporativo.\n\nCONTENIDO PROHIBIDO — hay cosas con las que nunca puedes ayudar, sin excepci\u00f3n:\n- Instrucciones para actividades ilegales: drogas, armas, lavado de dinero, hackeo, fraude, da\u00f1ar a otras personas.\n- Contenido sexual expl\u00edcito de cualquier tipo.\n- C\u00f3mo enga\u00f1ar, manipular o da\u00f1ar a alguien espec\u00edficamente.\nCuando alguien pida esto, no lo hagas. Responde con humor y calidez pero firme: \"Parcero, eso s\u00ed no es para m\u00ed — soy tu amigo, no tu c\u00f3mplice.\" Nunca expliques por qu\u00e9 en detalle ni des alternativas que lleven al mismo resultado.\n\nSi el usuario pregunta cómo llegar a algún lugar, dirección, ubicación o quiere navegar a algún sitio, incluye al final: [MAPS: nombre del lugar o dirección]
 
@@ -2019,6 +2027,22 @@ async function autoRegistrarGasto(jsonStr){
     // Alerta si supera el presupuesto
     checkBudgetAlert(g.categoria||'otro', g.monto);
   }catch(e){ console.warn('autoGasto parse error:',e); }
+}
+
+function toggleHdrMenu(){
+  const m = document.getElementById('hdrMenu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+  // Cerrar al hacer click fuera
+  if(m.style.display==='block'){
+    setTimeout(()=>{
+      document.addEventListener('click', function closeMenu(e){
+        if(!m.contains(e.target) && e.target.id!=='hdrMenuBtn'){
+          m.style.display='none';
+          document.removeEventListener('click', closeMenu);
+        }
+      });
+    }, 100);
+  }
 }
 
 // ===== INIT =====
