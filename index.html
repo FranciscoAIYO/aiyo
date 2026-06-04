@@ -1108,12 +1108,6 @@ function toggleMic(){
   };
   rec.onerror=()=>stopMic();
   rec.onend=()=>stopMic();
-  // Pedir micrófono con cancelación de eco y supresión de ruido
-  try{
-    await navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
-    });
-  }catch(e){ console.warn('getUserMedia constraint:', e); }
   rec.start();lstn=true;document.getElementById('micB').classList.add('on');
 }
 function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB').classList.remove('on');}
