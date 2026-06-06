@@ -1250,6 +1250,7 @@ function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB
 
 // ===== ELEVENLABS VOICE =====
 let audioQueue=[], isSpeaking=false, speakEndTime=0;
+let voiceProModalShown=false;
 
 async function speak(text){
   if(!voiceEnabled) return;
@@ -2271,6 +2272,8 @@ function animateLaugh(){
 
 
 function showVoiceProModal(){
+  if(voiceProModalShown) return;
+  voiceProModalShown=true;
   if(document.getElementById('voiceProModal')) return;
   const m = document.createElement('div');
   m.id='voiceProModal';
