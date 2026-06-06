@@ -648,22 +648,22 @@ body::before{
       <div class="onb-title">¿Cómo quieres que suene?</div>
       <div style="color:#aaa;text-align:center;margin-bottom:24px;font-size:0.95rem;">Elige la voz de tu AiYo</div>
       <div style="display:flex;flex-direction:column;gap:12px;">
-        <button class="onb-persona-btn" id="voiceMaleBtn" onclick="selectVoice('male','9ZVfdvBemUaGEWZgCiv0')">
+        <button class="onb-persona-btn" id="voiceMaleBtn" onclick="selectVoice('male','onyx')">
           <span style="font-size:1.5rem;">👨</span>
           <div style="flex:1;">
-            <div style="font-weight:600;color:#fff;">Masculina</div>
-            <div style="font-size:0.82rem;color:#aaa;">Cálida y cercana</div>
+            <div style="font-weight:600;color:#fff;">Onyx — Masculina</div>
+            <div style="font-size:0.82rem;color:#aaa;">Profunda y segura</div>
           </div>
-          <button onclick="event.stopPropagation();previewVoice('9ZVfdvBemUaGEWZgCiv0','Hola! Soy AiYo, tu nuevo parcero de vida.')" 
+          <button onclick="event.stopPropagation();previewVoice('onyx','Hola! Soy AiYo, tu nuevo parcero de vida.')" 
             style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">
             ▶ Escuchar
           </button>
         </button>
-        <button class="onb-persona-btn" id="voiceFemaleBtn" onclick="selectVoice('female','3ttovAt5bt3Kk38UGIob')">
+        <button class="onb-persona-btn" id="voiceFemaleBtn" onclick="selectVoice('female','nova')">
           <span style="font-size:1.5rem;">👩</span>
           <div style="flex:1;">
-            <div style="font-weight:600;color:#fff;">Femenina</div>
-            <div style="font-size:0.82rem;color:#aaa;">Cálida y expresiva</div>
+            <div style="font-weight:600;color:#fff;">Nova — Femenina</div>
+            <div style="font-size:0.82rem;color:#aaa;">Cálida y natural</div>
           </div>
           <button onclick="event.stopPropagation();previewVoice('3ttovAt5bt3Kk38UGIob','Hola! Soy AiYo, tu nueva compañera de vida.')"
             style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">
@@ -771,7 +771,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
 
 // ===== STATE =====
-let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'9ZVfdvBemUaGEWZgCiv0'},
+let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'nova'},
     hist=[],mems=[],mood='',user=null,isPro=false,
     msgs=0,rec=null,lstn=false,authTab='login';
 
@@ -827,7 +827,7 @@ async function loadUser(){
   try{
     const {data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
     if(error||!p?.name){go('setup');return;}
-    cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'9ZVfdvBemUaGEWZgCiv0',voiceGender:p.voice_id==='3ttovAt5bt3Kk38UGIob'?'female':'male'};
+    cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'nova',voiceGender:p.voice_id==='3ttovAt5bt3Kk38UGIob'?'female':'male'};
     isPro=p.is_pro||false;
     const {data:ms}=await sb.from('memories').select('content').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
     mems=(ms||[]).map(m=>m.content);
@@ -1253,7 +1253,7 @@ async function speak(text){
     voices=speechSynthesis.getVoices();
   }
 
-  const isFemale = cfg.voiceId === '3ttovAt5bt3Kk38UGIob';
+  const isFemale = ['nova','shimmer'].includes(cfg.voiceId);
   const esVoices = voices.filter(v=>v.lang.startsWith('es'));
   const femaleNames = ['Paulina','Monica','Mónica','Luciana','Valeria','Laura','Sofia','Sofía','Silvia'];
   const maleNames   = ['Jorge','Diego','Juan','Carlos'];
@@ -2369,9 +2369,11 @@ function openVoicePicker(){
   drawer.style.display='block';
   document.body.style.overflow='hidden';
   // Marcar la voz actual
-  const cur = cfg.voiceId || '9ZVfdvBemUaGEWZgCiv0';
-  document.getElementById('vpMaleBtn').style.borderColor = cur==='9ZVfdvBemUaGEWZgCiv0' ? '#7c3aed' : '#3a3a6a';
-  document.getElementById('vpFemaleBtn').style.borderColor = cur==='3ttovAt5bt3Kk38UGIob' ? '#7c3aed' : '#3a3a6a';
+  const cur = cfg.voiceId || 'nova';
+  ['nova','shimmer','alloy','echo','onyx','fable'].forEach(v=>{
+    const el = document.getElementById('vp_'+v);
+    if(el) el.style.borderColor = cur===v ? '#7c3aed' : '#3a3a6a';
+  });
   document.getElementById('vpSaved').style.display='none';
 }
 function closeVoicePicker(){
@@ -2384,8 +2386,10 @@ function pickVoice(gender, voiceId){
   localStorage.setItem('aiyo_cfg', JSON.stringify(cfg));
   // Guardar en Supabase también
   if(user) sb.from('profiles').update({voice_id: voiceId, voice_gender: gender}).eq('id', user.id);
-  document.getElementById('vpMaleBtn').style.borderColor = gender==='male' ? '#7c3aed' : '#3a3a6a';
-  document.getElementById('vpFemaleBtn').style.borderColor = gender==='female' ? '#7c3aed' : '#3a3a6a';
+  ['nova','shimmer','alloy','echo','onyx','fable'].forEach(v=>{
+    const el = document.getElementById('vp_'+v);
+    if(el) el.style.borderColor = v===voiceId ? '#7c3aed' : '#3a3a6a';
+  });
   document.getElementById('vpSaved').style.display='block';
   setTimeout(closeVoicePicker, 1200);
 }
@@ -2640,34 +2644,59 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div onclick="closeVoicePicker()" style="width:32px;height:32px;background:#1a1a35;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#aaa;">✕</div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div id="vpMaleBtn" onclick="pickVoice('male','9ZVfdvBemUaGEWZgCiv0')"
-        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.2s;">
-        <span style="font-size:1.8rem;">👨</span>
-        <div style="flex:1;">
-          <div style="font-weight:600;color:#fff;">Masculina</div>
-          <div style="font-size:0.82rem;color:#aaa;">Cálida y cercana</div>
-        </div>
-        <button onclick="event.stopPropagation();previewVoice('9ZVfdvBemUaGEWZgCiv0','Hola parcero! Soy AiYo, tu amigo de vida.')"
-          style="background:#2a2a4a;border:none;color:#a78bfa;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.85rem;">▶ Escuchar</button>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div id="vp_nova" onclick="pickVoice('female','nova')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.6rem;">👩</span>
+        <div style="flex:1;"><div style="font-weight:600;color:#fff;font-size:0.95rem;">Nova</div><div style="font-size:0.78rem;color:#aaa;">Femenina · Cálida y natural</div></div>
+        <button onclick="event.stopPropagation();previewVoice('nova','Hola! Soy AiYo, tu amiga de vida. Aquí estoy para ti.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">▶</button>
       </div>
-      <div id="vpFemaleBtn" onclick="pickVoice('female','3ttovAt5bt3Kk38UGIob')"
-        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.2s;">
-        <span style="font-size:1.8rem;">👩</span>
-        <div style="flex:1;">
-          <div style="font-weight:600;color:#fff;">Femenina</div>
-          <div style="font-size:0.82rem;color:#aaa;">Cálida y expresiva</div>
-        </div>
-        <button onclick="event.stopPropagation();previewVoice('3ttovAt5bt3Kk38UGIob','Hola! Soy AiYo, tu amiga de vida. Aquí para acompañarte siempre.')"
-          style="background:#2a2a4a;border:none;color:#a78bfa;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:0.85rem;">▶ Escuchar</button>
+      <div id="vp_shimmer" onclick="pickVoice('female','shimmer')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.6rem;">🌸</span>
+        <div style="flex:1;"><div style="font-weight:600;color:#fff;font-size:0.95rem;">Shimmer</div><div style="font-size:0.78rem;color:#aaa;">Femenina · Suave y dulce</div></div>
+        <button onclick="event.stopPropagation();previewVoice('shimmer','Hola! Soy AiYo, tu amiga de vida. Aquí estoy para ti.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">▶</button>
+      </div>
+      <div id="vp_alloy" onclick="pickVoice('neutral','alloy')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.6rem;">⚡</span>
+        <div style="flex:1;"><div style="font-weight:600;color:#fff;font-size:0.95rem;">Alloy</div><div style="font-size:0.78rem;color:#aaa;">Neutral · Moderna y clara</div></div>
+        <button onclick="event.stopPropagation();previewVoice('alloy','Hola! Soy AiYo, tu amigo de vida. Aquí estoy para ti.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">▶</button>
+      </div>
+      <div id="vp_echo" onclick="pickVoice('male','echo')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.6rem;">👨</span>
+        <div style="flex:1;"><div style="font-weight:600;color:#fff;font-size:0.95rem;">Echo</div><div style="font-size:0.78rem;color:#aaa;">Masculina · Clara y cercana</div></div>
+        <button onclick="event.stopPropagation();previewVoice('echo','Hola parcero! Soy AiYo, tu amigo de vida. Aquí estoy para ti.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">▶</button>
+      </div>
+      <div id="vp_onyx" onclick="pickVoice('male','onyx')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.6rem;">🎙️</span>
+        <div style="flex:1;"><div style="font-weight:600;color:#fff;font-size:0.95rem;">Onyx</div><div style="font-size:0.78rem;color:#aaa;">Masculina · Profunda y segura</div></div>
+        <button onclick="event.stopPropagation();previewVoice('onyx','Hola parcero! Soy AiYo, tu amigo de vida. Aquí estoy para ti.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">▶</button>
+      </div>
+      <div id="vp_fable" onclick="pickVoice('male','fable')"
+        style="display:flex;align-items:center;gap:14px;background:#1a1a35;border:2px solid #3a3a6a;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:1.6rem;">✨</span>
+        <div style="flex:1;"><div style="font-weight:600;color:#fff;font-size:0.95rem;">Fable</div><div style="font-size:0.78rem;color:#aaa;">Masculina · Expresiva y cálida</div></div>
+        <button onclick="event.stopPropagation();previewVoice('fable','Hola parcero! Soy AiYo, tu amigo de vida. Aquí estoy para ti.')"
+          style="background:#2a2a4a;border:none;color:#a78bfa;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:0.8rem;">▶</button>
       </div>
     </div>
     <div id="vpSaved" style="display:none;text-align:center;margin-top:16px;color:#a78bfa;font-size:0.88rem;">✅ Voz actualizada</div>
-  <div style="margin-top:10px;padding:10px 14px;background:rgba(167,139,250,0.06);border-radius:8px;font-size:0.78rem;color:var(--muted,#6B6480);text-align:center">
-    💡 La voz usa tecnología de tu dispositivo. En iPhone suena mejor.
-  </div>
+    <div style="margin-top:10px;padding:10px 14px;background:rgba(167,139,250,0.06);border-radius:8px;font-size:0.78rem;color:var(--muted,#6B6480);text-align:center">
+      💡 La voz usa tecnología de tu dispositivo. En iPhone suena mejor.
+    </div>
   </div>
 </div>
+
+
+
 
 
 <!-- FINANCE PANEL -->
