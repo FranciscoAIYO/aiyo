@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AiYo — Facebook Cover 820×312</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 16px;gap:20px}
+  h1{color:#A78BFA;font-size:1rem;font-weight:600;letter-spacing:0.04em}
+  canvas{border-radius:6px;box-shadow:0 8px 40px rgba(123,94,255,0.25);max-width:100%}
+  button{background:linear-gradient(135deg,#7B5EFF,#A78BFA);border:none;border-radius:10px;color:#fff;font-size:0.95rem;font-weight:700;padding:12px 32px;cursor:pointer;letter-spacing:0.02em}
+  button:hover{opacity:0.88}
+  .note{color:#555;font-size:0.78rem}
+</style>
+</head>
+<body>
+
+<h1>PORTADA FACEBOOK — 820 × 312 px</h1>
+<canvas id="cv" width="820" height="312"></canvas>
+<button onclick="download()">⬇️ Descargar PNG</button>
+<p class="note">820 × 312 px · Formato oficial portada Facebook</p>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = 820, H = 312;
+
+// ── Stars data (pre-seeded so they're stable) ─────────────────────────────────
+const stars = [];
+let seed = 2025;
+function rng(max){
+  seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+  return ((seed >>> 0) / 0xffffffff) * max;
+}
+for(let i=0;i<130;i++){
+  stars.push({x:rng(W), y:rng(H), r:rng(1.6)+0.3, base:rng(0.5)+0.1, speed:rng(2)+1.5, phase:rng(Math.PI*2)});
+}
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+let t = 0;
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle = '#07060F';
+  ctx.fillRect(0,0,W,H);
+
+  // Central violet radial glow
+  const glow = ctx.createRadialGradient(W*0.42, H*0.5, 0, W*0.42, H*0.5, W*0.52);
+  glow.addColorStop(0, 'rgba(80,40,160,0.28)');
+  glow.addColorStop(0.5,'rgba(60,20,120,0.10)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0,0,W,H);
+
+  // Left being glow
+  const beingGlow = ctx.createRadialGradient(188, H*0.5, 0, 188, H*0.5, 140);
+  beingGlow.addColorStop(0,'rgba(100,60,220,0.18)');
+  beingGlow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = beingGlow;
+  ctx.fillRect(0,0,W,H);
+
+  // Animated stars
+  stars.forEach(s => {
+    const flicker = s.base + Math.sin(t*s.speed + s.phase) * (s.base*0.6);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${flicker.toFixed(3)})`;
+    ctx.fill();
+  });
+
+  // Horizontal separator line (subtle)
+  const lineGrad = ctx.createLinearGradient(0,0,W,0);
+  lineGrad.addColorStop(0,'rgba(123,94,255,0)');
+  lineGrad.addColorStop(0.3,'rgba(123,94,255,0.18)');
+  lineGrad.addColorStop(0.7,'rgba(123,94,255,0.18)');
+  lineGrad.addColorStop(1,'rgba(123,94,255,0)');
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();ctx.moveTo(0,H-1);ctx.lineTo(W,H-1);ctx.stroke();
+
+  // ── BEING ──────────────────────────────────────────────────────────────────
+  const bx = 168, by = H*0.5, br = 88;
+
+  // Outer pulse ring
+  const pulse = 0.5 + Math.sin(t*0.9)*0.5; // 0..1
+  ctx.beginPath();
+  ctx.arc(bx, by, br + 18 + pulse*8, 0, Math.PI*2);
+  ctx.strokeStyle = `rgba(123,94,255,${(0.06 + pulse*0.08).toFixed(3)})`;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Mid ring
+  ctx.beginPath();
+  ctx.arc(bx, by, br + 8, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(123,94,255,0.14)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Circle fill
+  const circleFill = ctx.createRadialGradient(bx-20, by-20, 4, bx, by, br);
+  circleFill.addColorStop(0,'rgba(140,90,255,0.22)');
+  circleFill.addColorStop(1,'rgba(60,20,140,0.08)');
+  ctx.beginPath();
+  ctx.arc(bx, by, br, 0, Math.PI*2);
+  ctx.fillStyle = circleFill;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(123,94,255,0.55)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Eyes
+  const eyeY = by - 6;
+  const eyeGap = 26;
+  const blink = Math.sin(t*0.4);
+  const eyeH = blink > 0.96 ? 1 : 11; // blink
+
+  [-1,1].forEach(side => {
+    const ex = bx + side*eyeGap;
+    // Eye white/purple fill
+    ctx.beginPath();
+    ctx.ellipse(ex, eyeY, 9, eyeH, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#A78BFA';
+    ctx.fill();
+    // Pupil
+    if(eyeH > 3){
+      ctx.beginPath();
+      ctx.ellipse(ex + 2, eyeY, 4.5, 5.5, 0, 0, Math.PI*2);
+      ctx.fillStyle = '#4A2EB0';
+      ctx.fill();
+      // Shine
+      ctx.beginPath();
+      ctx.arc(ex - 1, eyeY - 3, 2.2, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fill();
+    }
+  });
+
+  // ── TEXT ───────────────────────────────────────────────────────────────────
+  const tx = 298; // text start x
+
+  // Line 1 — "AiYo" large
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = 'bold 92px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  ctx.fillStyle = '#F0EDF8';
+  ctx.fillText('AiYo', tx, H*0.46);
+
+  // Subtle shadow behind AiYo text
+  ctx.shadowColor = 'rgba(123,94,255,0.4)';
+  ctx.shadowBlur = 28;
+  ctx.font = 'bold 92px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  ctx.fillStyle = '#EDE9F8';
+  ctx.fillText('AiYo', tx, H*0.46);
+  ctx.shadowBlur = 0;
+
+  // Line 2 — "Vive contigo." violet gradient
+  const vg = ctx.createLinearGradient(tx, 0, tx+340, 0);
+  vg.addColorStop(0,'#8B6FFF');
+  vg.addColorStop(1,'#C4A8FF');
+  ctx.font = '500 36px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  ctx.fillStyle = vg;
+  ctx.fillText('Vive contigo.', tx, H*0.66);
+
+  // Line 3 — small grey tagline
+  ctx.font = '400 21px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  ctx.fillStyle = 'rgba(180,170,210,0.55)';
+  ctx.fillText('Tu amigo de IA  •  Siempre presente', tx, H*0.82);
+
+  // ── URL BADGE ──────────────────────────────────────────────────────────────
+  const badgeText = 'aiyo-pied.vercel.app';
+  ctx.font = '600 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  const bw = ctx.measureText(badgeText).width + 28;
+  const bh = 34;
+  const badgeX = W - bw - 24;
+  const badgeY = H - bh - 20;
+
+  // Badge background
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, bw, bh, 8);
+  ctx.fillStyle = 'rgba(123,94,255,0.14)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(123,94,255,0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Badge text
+  ctx.fillStyle = '#A78BFA';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(badgeText, badgeX + bw/2, badgeY + bh/2 + 1);
+
+  t += 0.016;
+  requestAnimationFrame(draw);
+}
+draw();
+
+// ── Download ──────────────────────────────────────────────────────────────────
+function download(){
+  // Pause t at current frame, draw one more time for clean export
+  const a = document.createElement('a');
+  a.download = 'aiyo-facebook-cover-820x312.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+</script>
+</body>
+</html>
