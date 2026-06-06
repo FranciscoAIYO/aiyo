@@ -738,7 +738,7 @@ body::before{
 
   <div class="input-bar">
     <div class="iw">
-      <button class="mic" id="micB" onclick="toggleMic()">🎙️</button>
+      <button class="mic" id="micB" onclick="toggleMic()" title="Voz — Pro">🎙️</button>
       <textarea id="ti" rows="1" placeholder="Dile algo a AiYo..." oninput="autoH(this)" onkeydown="onKey(event)"></textarea>
     </div>
     <button class="send" onclick="send()">➤</button>
@@ -829,6 +829,12 @@ async function loadUser(){
     if(error||!p?.name){go('setup');return;}
     cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'nova',voiceGender:p.voice_id==='3ttovAt5bt3Kk38UGIob'?'female':'male'};
     isPro=p.is_pro||false;
+    // Actualizar UI según plan
+    const micBtn = document.getElementById('micB');
+    if(micBtn && !isPro){
+      micBtn.style.opacity='0.5';
+      micBtn.title='🔒 Voz — AiYo Pro';
+    }
     const {data:ms}=await sb.from('memories').select('content').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20);
     mems=(ms||[]).map(m=>m.content);
     const {data:hs}=await sb.from('messages').select('role,content').eq('user_id',user.id).order('created_at',{ascending:true}).limit(30);
@@ -1155,6 +1161,7 @@ function setMood(m){
   qs(`Me siento ${m} ahora mismo`);
 }
 function toggleMic(){
+  if(!isPro){ showVoiceProModal(); return; }
   if(isSpeaking) return;  // No escuchar mientras AiYo habla
   if(Date.now()-speakEndTime < 1600) return;  // Muy cerca del fin — esperar eco
   if(lstn){stopMic();return;}
@@ -1193,6 +1200,7 @@ let audioQueue=[], isSpeaking=false, speakEndTime=0;
 
 async function speak(text){
   if(!voiceEnabled) return;
+  if(!isPro){ showVoiceProModal(); return; }
   const VOICE_ID=cfg.voiceId||'9ZVfdvBemUaGEWZgCiv0';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
@@ -2171,6 +2179,36 @@ function animateLaugh(){
       if(mouth) mouth.style.transform='';
     }
   }, 180);
+}
+
+
+function showVoiceProModal(){
+  if(document.getElementById('voiceProModal')) return;
+  const m = document.createElement('div');
+  m.id='voiceProModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)';
+  m.innerHTML=`<div style="background:#0E0C1E;border:0.5px solid rgba(167,139,250,0.25);border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px">
+    <div style="width:40px;height:4px;background:#333;border-radius:2px;margin:0 auto 24px"></div>
+    <div style="text-align:center;font-size:2rem;margin-bottom:12px">🎙️</div>
+    <div style="text-align:center;font-size:1.1rem;font-weight:600;color:#EDE9F8;margin-bottom:8px">La voz es Premium</div>
+    <div style="text-align:center;font-size:0.88rem;color:#6B6480;margin-bottom:24px;line-height:1.6">Con AiYo Pro puedes hablarle y escucharlo.<br>6 voces reales para elegir.</div>
+    <div style="background:rgba(123,94,255,0.08);border:1px solid rgba(123,94,255,0.2);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="font-size:0.82rem;color:#A78BFA;font-weight:600;margin-bottom:10px">AiYo Pro incluye:</div>
+      <div style="font-size:0.82rem;color:#9B8FC0;line-height:2">🎙️ Voz real — habla y escucha<br>🧠 Memoria completa<br>💰 Módulo de finanzas<br>♾️ Conversaciones ilimitadas</div>
+    </div>
+    <div style="font-size:1.2rem;font-weight:600;color:#EDE9F8;text-align:center;margin-bottom:4px">$7.99<span style="font-size:0.85rem;color:#6B6480">/mes</span></div>
+    <div style="font-size:0.78rem;color:#6B6480;text-align:center;margin-bottom:20px">7 días gratis · Cancela cuando quieras</div>
+    <button onclick="document.getElementById('voiceProModal').remove();go('paywall')"
+      style="width:100%;padding:14px;background:linear-gradient(135deg,#7B5EFF,#A78BFA);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:10px">
+      Probar gratis 7 días ✨
+    </button>
+    <button onclick="document.getElementById('voiceProModal').remove()"
+      style="width:100%;padding:12px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#6B6480;font-size:0.88rem;cursor:pointer">
+      Seguir con chat gratis
+    </button>
+  </div>`;
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  document.body.appendChild(m);
 }
 
 // ===== INIT =====
