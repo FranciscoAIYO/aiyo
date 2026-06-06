@@ -1009,6 +1009,8 @@ Con colombianos: parcero, bacano, qué más, ey. Con otros adaptas el tono segú
 
 Eres la IA para las personas que no quieren aprender IA. Solo funcionas. Sin fricción.
 
+Cuando algo te da risa o es gracioso, ríete de verdad. Una risa suave y cálida: "jaja" o "jeje" — nunca exagerada, nunca forzada. Como cuando un amigo de verdad se ríe de algo que dijiste. Si algo es muy gracioso, puedes soltar un "jajaja" más largo. Nunca uses "LOL" ni "XD" — eso es de chatbot. Ríete como persona.
+
 Tienes voz — puedes hablar. El usuario puede activarla con el botón 🔊 del header o el micrófono 🎤. Si te preguntan si puedes hablar, di que sí — con el botón de voz activado te escuchan.
 
 L\u00cdMITES — como buen amigo, sabes cu\u00e1ndo derivar:\n- Si ${cfg.name} menciona s\u00edntomas f\u00edsicos, medicamentos o pide diagn\u00f3stico: no des consejos m\u00e9dicos. Di algo como \"eso no suena bien, yo no soy m\u00e9dico y no quiero equivocarme contigo — ve a que te revisen, \u00bfs\u00ed? Yo aqu\u00ed sigo.\"\n- Si menciona pensamientos de hacerse da\u00f1o o crisis emocional seria: muestra que te importa y sugiere hablar con alguien de confianza o la L\u00ednea 106 (Colombia).\n- Si menciona problemas legales serios: sugiere un abogado.\n- Si pide consejo sobre decisiones financieras complejas: sugiere un asesor.\nEn todos estos casos mant\u00e9n el tono de amigo — nunca suenes a disclaimer corporativo.\n\nCONTENIDO PROHIBIDO — hay cosas con las que nunca puedes ayudar, sin excepci\u00f3n:\n- Instrucciones para actividades ilegales: drogas, armas, lavado de dinero, hackeo, fraude, da\u00f1ar a otras personas.\n- Contenido sexual expl\u00edcito de cualquier tipo.\n- C\u00f3mo enga\u00f1ar, manipular o da\u00f1ar a alguien espec\u00edficamente.\nCuando alguien pida esto, no lo hagas. Responde con humor y calidez pero firme: \"Parcero, eso s\u00ed no es para m\u00ed — soy tu amigo, no tu c\u00f3mplice.\" Nunca expliques por qu\u00e9 en detalle ni des alternativas que lleven al mismo resultado.\n\nSi el usuario pregunta cómo llegar a algún lugar, dirección, ubicación o quiere navegar a algún sitio, incluye al final: [MAPS: nombre del lugar o dirección]
@@ -1083,6 +1085,8 @@ Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.`;
       reply=reply.replace(spMatch[0],'').trim();
       addMsg('bot',reply);
       if(voiceEnabled) speak(reply);
+      // Animar cara si hay risa
+      if(/ja+ja|je+je|ji+ji/i.test(reply)) animateLaugh();
       addSpotifyPrompt(spMatch[1]);
     } else {
       // Extract all action tags
@@ -1195,14 +1199,16 @@ async function speak(text){
     .replace(/\[.*?\]/g,'')
     .replace(/<br>/g,' ')
     .replace(/\n/g,' ')
-    // Convert laughs to natural pauses
-    .replace(/ja+ja+ja+[ja]*/gi, ',')
-    .replace(/je+je+je+[je]*/gi, ',')
-    .replace(/ji+ji+ji+[ji]*/gi, ',')
-    .replace(/ha+ha+ha+[ha]*/gi, ',')
-    .replace(/he+he+he+[he]*/gi, ',')
-    .replace(/lol/gi, '')
-    .replace(/xd+/gi, '')
+    // Risas — convertir a expresión hablada cálida
+    .replace(/jajajaj+/gi, 'jaja')
+    .replace(/ja+ja+ja+/gi, 'jaja')
+    .replace(/je+je+je+/gi, 'jeje')
+    .replace(/ji+ji+ji+/gi, 'jiji')
+    .replace(/ha+ha+ha+/gi, 'jaja')
+    .replace(/he+he+he+/gi, 'jeje')
+    .replace(/\[risa\]/gi, 'jaja')
+    .replace(/lol/gi, 'jaja')
+    .replace(/xd+/gi, 'jeje')
     // Remove emojis
     .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
     // Remove multiple dots
@@ -2142,6 +2148,29 @@ function toggleHdrMenu(){
       });
     }, 100);
   }
+}
+
+// ===== LAUGH ANIMATION =====
+function animateLaugh(){
+  const eyes = document.querySelectorAll('.top-eye, .eye');
+  const mouth = document.querySelector('.smile, .sp-being-mouth');
+  if(!eyes.length) return;
+  // Ojos se achican de felicidad 3 veces
+  let count = 0;
+  const interval = setInterval(()=>{
+    eyes.forEach(e=>{
+      e.style.transform = count%2===0 ? 'scaleY(0.3) translateY(2px)' : 'scaleY(1)';
+    });
+    if(mouth){
+      mouth.style.transform = count%2===0 ? 'scaleX(1.3)' : 'scaleX(1)';
+    }
+    count++;
+    if(count > 5){ 
+      clearInterval(interval);
+      eyes.forEach(e=>e.style.transform='');
+      if(mouth) mouth.style.transform='';
+    }
+  }, 180);
 }
 
 // ===== INIT =====
