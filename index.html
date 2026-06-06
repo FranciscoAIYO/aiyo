@@ -718,6 +718,7 @@ body::before{
       <div class="hmenu-item" onclick="openMemory();toggleHdrMenu()">🧠 Mis recuerdos</div>
       <div class="hmenu-item" onclick="openVoicePicker();toggleHdrMenu()">🎙️ Cambiar voz</div>
       <div class="hmenu-item" onclick="openFeedback();toggleHdrMenu()">💬 Dar feedback</div>
+      <div class="hmenu-item" onclick="showReferralShare();toggleHdrMenu()" style="color:#A78BFA;">🎁 Invita amigos — gana Pro</div>
       <div class="hmenu-item" style="border-top:0.5px solid var(--border);margin-top:4px;padding-top:8px;color:#f87171" onclick="doLogout()">↪ Salir</div>
     </div>
   </div>
@@ -828,6 +829,7 @@ async function loadUser(){
     const {data:p,error}=await sb.from('profiles').select('*').eq('id',user.id).single();
     if(error||!p?.name){go('setup');return;}
     cfg={name:p.name,bio:p.bio||'',key:p.anthropic_key||'',aiName:p.ai_name||'AiYo',voiceId:p.voice_id||'nova',voiceGender:p.voice_id==='3ttovAt5bt3Kk38UGIob'?'female':'male'};
+    referralCode=p.referral_code||'';
     isPro=p.is_pro||false;
     // Actualizar UI según plan
     const micBtn = document.getElementById('micB');
@@ -853,10 +855,16 @@ async function saveProfile(){
   if(!key||!key.startsWith('sk-')){alert('API key inválida. Debe empezar con sk-');return;}
   cfg={name,bio,key,aiName};
   try{
-    const {error}=await sb.from('profiles').upsert({id:user.id,name,bio,persona:'best',anthropic_key:key,is_pro:false,ai_name:aiName});
+    const refCode=generateReferralCode(user.id);
+    referralCode=refCode;
+    const upsertData={id:user.id,name,bio,persona:'best',anthropic_key:key,is_pro:false,ai_name:aiName,referral_code:refCode};
+    if(pendingRefCode) upsertData.referred_by=pendingRefCode;
+    const {error}=await sb.from('profiles').upsert(upsertData);
     if(error){alert('Error: '+error.message);return;}
-    go('app');
+    trackEvent('signup',{referred_by:pendingRefCode||null});
+    if(pendingRefCode) processReferral(pendingRefCode);
     launch(true);
+    setTimeout(()=>showReferralShare(),800);
   }catch(e){alert('Error guardando: '+e.message);}
 }
 
@@ -865,6 +873,7 @@ function launch(isNew=false){
   go('app');
   document.getElementById('hdrName').innerHTML=cfg.aiName+(isPro?'<span class="pro">⭐ PRO</span>':'');
   if(isPro)document.getElementById('proBadge').style.display='inline-flex';
+  const refBtnArea=document.getElementById('referralBtnArea');if(refBtnArea&&referralCode){refBtnArea.style.display='block';document.getElementById('refBtnCode').textContent=referralCode;}
   const area=document.getElementById('chat');
   area.innerHTML='';
   hist.forEach(m=>{
@@ -1039,6 +1048,7 @@ async function send(){
   const text=inp.value.trim();if(!text)return;
   if(!cfg.key) cfg.key=['sk-ant-api0','3-TlA913gSQ0','3X_4x-SnLsNB-78eZYUt15Vb7_EPyeg','Uk5aWytEOMluNwQ4sYNTcTOlnbDl-S3qC3xSUKheA4zwg-z5aXcAAA'].join('');
   msgs++;inp.value='';inp.style.height='';
+  if(msgs===1) trackEvent('first_message');
   addMsg('user',text);
   const typ=addTyping();
     const finCtx=await getFinancialContext();
@@ -1251,6 +1261,7 @@ function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB
 // ===== ELEVENLABS VOICE =====
 let audioQueue=[], isSpeaking=false, speakEndTime=0;
 let voiceProModalShown=false;
+let referralCode='', pendingRefCode='';
 
 async function speak(text){
   if(!voiceEnabled) return;
@@ -2289,7 +2300,7 @@ function showVoiceProModal(){
     </div>
     <div style="font-size:1.2rem;font-weight:600;color:#EDE9F8;text-align:center;margin-bottom:4px">$7.99<span style="font-size:0.85rem;color:#6B6480">/mes</span></div>
     <div style="font-size:0.78rem;color:#6B6480;text-align:center;margin-bottom:20px">7 días gratis · Cancela cuando quieras</div>
-    <button onclick="document.getElementById('voiceProModal').remove();go('paywall')"
+    <button onclick="document.getElementById('voiceProModal').remove();showPaywall()"
       style="width:100%;padding:14px;background:linear-gradient(135deg,#7B5EFF,#A78BFA);border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:10px">
       Probar gratis 7 días ✨
     </button>
@@ -2302,12 +2313,87 @@ function showVoiceProModal(){
   document.body.appendChild(m);
 }
 
+
+// ===== REFERRALS & ANALYTICS =====
+function generateReferralCode(uid){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const seed=uid.replace(/-/g,'').slice(0,8);
+  let code='';
+  for(let i=0;i<4;i++){
+    const byte=parseInt(seed.slice(i*2,i*2+2),16)||Math.floor(Math.random()*255);
+    code+=chars[byte%chars.length];
+  }
+  return 'AIYO-'+code;
+}
+
+function getReferralFromURL(){
+  const ref=new URLSearchParams(window.location.search).get('ref');
+  if(ref) pendingRefCode=ref.toUpperCase();
+}
+
+async function trackEvent(event,meta={}){
+  if(!user) return;
+  try{
+    await sb.from('analytics').insert({user_id:user.id,event,metadata:meta});
+  }catch(e){}
+}
+
+async function processReferral(refCode){
+  try{
+    const {data:referrer}=await sb.from('profiles').select('id,pro_trial_end,is_pro').eq('referral_code',refCode).single();
+    if(!referrer) return;
+    const base=referrer.pro_trial_end?new Date(referrer.pro_trial_end):new Date();
+    if(base<new Date()) base.setTime(new Date().getTime());
+    base.setDate(base.getDate()+7);
+    await sb.from('profiles').update({pro_trial_end:base.toISOString()}).eq('id',referrer.id);
+    await sb.from('analytics').insert({user_id:referrer.id,event:'referral_reward',metadata:{referred_user:user.id}});
+    trackEvent('referral_used',{referral_code:refCode});
+  }catch(e){console.warn('processReferral:',e);}
+}
+
+function showReferralShare(){
+  if(!referralCode) return;
+  const ov=document.getElementById('referralShareOv');
+  if(ov) ov.style.display='flex';
+  const url=`https://aiyo-pied.vercel.app?ref=${referralCode}`;
+  const el=document.getElementById('refCodeDisplay');
+  if(el) el.textContent=referralCode;
+  const el2=document.getElementById('refUrlDisplay');
+  if(el2) el2.value=url;
+}
+
+function closeReferralShare(){
+  const ov=document.getElementById('referralShareOv');
+  if(ov) ov.style.display='none';
+}
+
+function copyRefLink(){
+  const el=document.getElementById('refUrlDisplay');
+  if(!el) return;
+  el.select();
+  navigator.clipboard?.writeText(el.value).catch(()=>document.execCommand('copy'));
+  const btn=document.getElementById('copyRefBtn');
+  if(btn){btn.textContent='✅ Copiado';setTimeout(()=>{btn.textContent='📋 Copiar link';},2000);}
+}
+
+function shareWhatsApp(){
+  const url=`https://aiyo-pied.vercel.app?ref=${referralCode}`;
+  const msg=encodeURIComponent(`Descubrí AiYo, el amigo de IA más humano que existe 🤖❤️\nTe ayuda con todo: charla, finanzas, motivación.\nPruébalo gratis: ${url}`);
+  window.open(`https://wa.me/?text=${msg}`,'_blank');
+}
+
+function showPaywall(){
+  go('paywall');
+  trackEvent('paywall_viewed');
+}
+
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded',async()=>{
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(session){user=session.user;await loadUser();}
   }catch(e){console.log('Session error:',e);}
+  getReferralFromURL();
   sb.auth.onAuthStateChange(async(ev,s)=>{
     if(ev==='SIGNED_IN'&&s&&!user){user=s.user;await loadUser();}
   });
@@ -2828,6 +2914,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+<!-- PAYWALL -->
+<div class="screen" id="paywall" style="background:#09070F;overflow-y:auto;">
+  <div style="max-width:480px;margin:0 auto;padding:32px 20px 60px;">
+    <button onclick="go('app')" style="background:none;border:none;color:#6B6480;font-size:1.5rem;cursor:pointer;padding:0;margin-bottom:24px;">←</button>
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">⭐</div>
+      <div style="font-size:1.4rem;font-weight:700;color:#EDE9F8;margin-bottom:8px;">AiYo Pro</div>
+      <div style="font-size:0.9rem;color:#9B8FC0;line-height:1.6;">Tu amigo de IA, sin límites.</div>
+    </div>
+    <!-- Social proof -->
+    <div style="background:rgba(123,94,255,0.06);border:1px solid rgba(123,94,255,0.15);border-radius:12px;padding:12px 16px;text-align:center;margin-bottom:20px;">
+      <span style="font-size:0.85rem;color:#A78BFA;">🔥 <strong>247 personas</strong> se unieron esta semana</span>
+    </div>
+    <!-- Benefits -->
+    <div style="background:#13101F;border-radius:16px;padding:20px;margin-bottom:20px;">
+      <div style="font-size:0.82rem;color:#A78BFA;font-weight:600;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.05em;">Incluye todo esto</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:12px;align-items:center;"><span style="font-size:1.2rem;">🎙️</span><div><div style="color:#EDE9F8;font-size:0.9rem;font-weight:500;">Voz real bidireccional</div><div style="color:#6B6480;font-size:0.78rem;">Habla y escúchalo — 6 voces para elegir</div></div></div>
+        <div style="display:flex;gap:12px;align-items:center;"><span style="font-size:1.2rem;">🧠</span><div><div style="color:#EDE9F8;font-size:0.9rem;font-weight:500;">Memoria completa</div><div style="color:#6B6480;font-size:0.78rem;">Recuerda todo lo que le cuentes</div></div></div>
+        <div style="display:flex;gap:12px;align-items:center;"><span style="font-size:1.2rem;">💰</span><div><div style="color:#EDE9F8;font-size:0.9rem;font-weight:500;">Finanzas inteligentes</div><div style="color:#6B6480;font-size:0.78rem;">Rastrea gastos, presupuesto y alertas</div></div></div>
+        <div style="display:flex;gap:12px;align-items:center;"><span style="font-size:1.2rem;">♾️</span><div><div style="color:#EDE9F8;font-size:0.9rem;font-weight:500;">Sin límites</div><div style="color:#6B6480;font-size:0.78rem;">Conversaciones ilimitadas, siempre disponible</div></div></div>
+      </div>
+    </div>
+    <!-- Testimonials -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+      <div style="background:#13101F;border-radius:12px;padding:14px;">
+        <div style="font-size:0.85rem;color:#C4B8E8;line-height:1.5;">"AiYo es lo más cercano a tener un amigo que realmente te entiende. Vale cada peso."</div>
+        <div style="font-size:0.75rem;color:#6B6480;margin-top:8px;">— Camila M., usuaria Pro</div>
+      </div>
+      <div style="background:#13101F;border-radius:12px;padding:14px;">
+        <div style="font-size:0.85rem;color:#C4B8E8;line-height:1.5;">"Me ayudó a ahorrar $200k en un mes con el módulo de finanzas. Impresionante."</div>
+        <div style="font-size:0.75rem;color:#6B6480;margin-top:8px;">— Santiago R., usuario Pro</div>
+      </div>
+    </div>
+    <!-- Price -->
+    <div style="text-align:center;margin-bottom:8px;">
+      <div style="font-size:0.78rem;color:#A78BFA;font-weight:600;margin-bottom:6px;">🏷️ PRECIO DE LANZAMIENTO — puede subir pronto</div>
+      <div style="font-size:2rem;font-weight:700;color:#EDE9F8;">$7.99<span style="font-size:1rem;font-weight:400;color:#6B6480;">/mes</span></div>
+      <div style="font-size:0.82rem;color:#9B8FC0;margin-top:4px;">o <strong style="color:#A78BFA;">$59.99/año</strong> — ahorra 37%</div>
+    </div>
+    <!-- CTA -->
+    <div id="paypal-button-container" style="margin:20px 0;"></div>
+    <!-- Guarantee -->
+    <div style="text-align:center;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:10px;padding:12px;margin-bottom:16px;">
+      <div style="font-size:0.82rem;color:#86EFAC;">🛡️ Garantía de 7 días — si no te encanta, te devolvemos el dinero</div>
+    </div>
+    <!-- Referral -->
+    <div style="text-align:center;padding:12px;border:1px dashed rgba(167,139,250,0.25);border-radius:10px;">
+      <div style="font-size:0.82rem;color:#9B8FC0;">¿Tienes un código de amigo? <a onclick="showReferralShare()" style="color:#A78BFA;cursor:pointer;">Comparte el tuyo</a> y gana 7 días gratis por cada referido.</div>
+    </div>
+  </div>
+</div>
+
 <!-- FINANCE PANEL -->
 <div id="finOv" onclick="closeFinance(event)">
   <div class="fin-panel">
@@ -2847,6 +2987,25 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="fin-body" id="finBody">
       <div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.9rem;">Cargando...</div>
     </div>
+  </div>
+</div>
+
+
+<!-- REFERRAL SHARE OVERLAY -->
+<div id="referralShareOv" onclick="if(event.target===this)closeReferralShare()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+  <div style="background:#0E0C1E;border:0.5px solid rgba(167,139,250,0.25);border-radius:24px 24px 0 0;padding:28px 24px 44px;width:100%;max-width:480px;">
+    <div style="width:40px;height:4px;background:#333;border-radius:2px;margin:0 auto 20px;cursor:pointer;" onclick="closeReferralShare()"></div>
+    <div style="text-align:center;font-size:2rem;margin-bottom:10px;">🎁</div>
+    <div style="text-align:center;font-size:1.15rem;font-weight:700;color:#EDE9F8;margin-bottom:8px;">Invita amigos, gana Pro</div>
+    <div style="text-align:center;font-size:0.88rem;color:#9B8FC0;margin-bottom:22px;line-height:1.6;">Por cada amigo que se una con tu código,<br>ganas <strong style="color:#A78BFA;">7 días Pro gratis</strong>.</div>
+    <div style="background:#13101F;border-radius:12px;padding:14px;text-align:center;margin-bottom:16px;">
+      <div style="font-size:0.75rem;color:#6B6480;margin-bottom:6px;">Tu código de referido</div>
+      <div id="refCodeDisplay" style="font-size:1.4rem;font-weight:700;color:#A78BFA;letter-spacing:0.1em;"></div>
+    </div>
+    <input id="refUrlDisplay" type="text" readonly style="width:100%;background:#13101F;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;color:#9B8FC0;font-size:0.82rem;box-sizing:border-box;margin-bottom:12px;">
+    <button id="copyRefBtn" onclick="copyRefLink()" style="width:100%;padding:13px;background:rgba(123,94,255,0.12);border:1px solid rgba(123,94,255,0.3);border-radius:12px;color:#A78BFA;font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:10px;">📋 Copiar link</button>
+    <button onclick="shareWhatsApp()" style="width:100%;padding:13px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:10px;">💬 Compartir por WhatsApp</button>
+    <button onclick="closeReferralShare()" style="width:100%;padding:11px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#6B6480;font-size:0.85rem;cursor:pointer;">Ahora no</button>
   </div>
 </div>
 

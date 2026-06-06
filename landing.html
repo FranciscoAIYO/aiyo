@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AiYo — El amigo que siempre está ahí para ti</title>
+<meta name="description" content="AiYo es tu amigo de IA más humano. Te escucha, te ayuda con finanzas, motivación y más. Pruébalo gratis.">
+<!-- Open Graph -->
+<meta property="og:title" content="AiYo — El amigo que siempre está ahí para ti">
+<meta property="og:description" content="AiYo te escucha, te ayuda y aprende de ti cada día. Tu compañero de IA más humano.">
+<meta property="og:image" content="https://aiyo-pied.vercel.app/og-image.png">
+<meta property="og:url" content="https://aiyo-pied.vercel.app/landing.html">
+<meta property="og:type" content="website">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AiYo — El amigo que siempre está ahí para ti">
+<meta name="twitter:description" content="Tu compañero de IA más humano. Pruébalo gratis.">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--purple:#7B5EFF;--purple-light:#A78BFA;--bg:#09070F;--surface:#0E0C1E;--text:#EDE9F8;--muted:#9B8FC0;--dim:#6B6480;--border:rgba(255,255,255,0.07)}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+  /* Stars */
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .star{position:absolute;border-radius:50%;background:#fff;animation:twinkle 3s ease-in-out infinite}
+  @keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.8}}
+
+  /* Nav */
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:rgba(9,7,15,0.8);backdrop-filter:blur(12px);border-bottom:0.5px solid var(--border)}
+  .nav-logo{font-size:1.2rem;font-weight:700;color:var(--purple-light);letter-spacing:-0.02em}
+  .nav-cta{background:var(--purple);color:#fff;border:none;border-radius:20px;padding:8px 20px;font-size:0.88rem;font-weight:600;cursor:pointer;text-decoration:none}
+
+  /* Content */
+  .content{position:relative;z-index:1}
+
+  /* Hero */
+  .hero{text-align:center;padding:120px 24px 80px;max-width:600px;margin:0 auto}
+  .being{width:90px;height:90px;background:rgba(123,94,255,0.15);border:1px solid rgba(123,94,255,0.3);border-radius:50%;margin:0 auto 32px;display:flex;align-items:center;justify-content:center;position:relative;animation:float 4s ease-in-out infinite}
+  .being::after{content:'';position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(123,94,255,0.1);animation:pulse-ring 3s ease-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  @keyframes pulse-ring{0%{transform:scale(1);opacity:0.5}100%{transform:scale(1.4);opacity:0}}
+  .being-eyes{display:flex;gap:16px;justify-content:center}
+  .being-eye{width:10px;height:10px;background:#A78BFA;border-radius:50%;animation:blink 4s ease-in-out infinite}
+  .being-eye:nth-child(2){animation-delay:.15s}
+  @keyframes blink{0%,90%,100%{transform:scaleY(1)}95%{transform:scaleY(0.1)}}
+  .hero-badge{display:inline-block;background:rgba(123,94,255,0.12);border:1px solid rgba(123,94,255,0.3);border-radius:20px;padding:6px 16px;font-size:0.78rem;color:var(--purple-light);font-weight:600;margin-bottom:20px;letter-spacing:0.05em}
+  .hero h1{font-size:clamp(2rem,5vw,2.8rem);font-weight:800;line-height:1.15;color:var(--text);margin-bottom:16px;letter-spacing:-0.02em}
+  .hero h1 span{background:linear-gradient(135deg,var(--purple),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .hero p{font-size:1.05rem;color:var(--muted);line-height:1.7;margin-bottom:32px}
+  .hero-cta{display:inline-block;background:linear-gradient(135deg,var(--purple),var(--purple-light));color:#fff;border:none;border-radius:14px;padding:16px 36px;font-size:1.05rem;font-weight:700;cursor:pointer;text-decoration:none;transition:transform .2s,box-shadow .2s}
+  .hero-cta:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(123,94,255,0.35)}
+  .hero-sub{font-size:0.8rem;color:var(--dim);margin-top:12px}
+
+  /* Social proof */
+  .social-proof{display:flex;align-items:center;justify-content:center;gap:16px;padding:20px 24px;flex-wrap:wrap}
+  .sp-item{font-size:0.85rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+
+  /* Section */
+  section{padding:60px 24px;max-width:700px;margin:0 auto}
+  .section-title{font-size:1.5rem;font-weight:700;color:var(--text);text-align:center;margin-bottom:8px}
+  .section-sub{font-size:0.92rem;color:var(--muted);text-align:center;margin-bottom:40px;line-height:1.6}
+
+  /* Benefits */
+  .benefits{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+  .benefit{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 20px}
+  .benefit-icon{font-size:2rem;margin-bottom:14px}
+  .benefit h3{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:8px}
+  .benefit p{font-size:0.85rem;color:var(--muted);line-height:1.6}
+
+  /* Demo */
+  .demo{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:360px;margin:0 auto}
+  .demo-header{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+  .demo-being{width:36px;height:36px;background:rgba(123,94,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .demo-name{font-weight:600;color:var(--text);font-size:0.9rem}
+  .demo-status{font-size:0.75rem;color:var(--purple-light)}
+  .bubble{background:#1A1730;border-radius:16px 16px 16px 4px;padding:12px 16px;font-size:0.88rem;color:var(--text);line-height:1.5;margin-bottom:10px;max-width:85%}
+  .bubble.user{background:rgba(123,94,255,0.15);border-radius:16px 16px 4px 16px;margin-left:auto;text-align:right}
+
+  /* Testimonials */
+  .testimonials{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .testimonial{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+  .stars-rating{color:#FBBF24;font-size:0.85rem;margin-bottom:10px}
+  .testimonial p{font-size:0.88rem;color:var(--muted);line-height:1.6;margin-bottom:12px}
+  .testimonial-author{font-size:0.78rem;color:var(--dim)}
+
+  /* Pricing */
+  .pricing{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:520px;margin:0 auto}
+  @media(max-width:480px){.pricing{grid-template-columns:1fr}}
+  .plan{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px}
+  .plan.featured{border-color:rgba(123,94,255,0.4);background:rgba(123,94,255,0.05);position:relative}
+  .plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--purple),var(--purple-light));border-radius:20px;padding:4px 14px;font-size:0.72rem;font-weight:700;color:#fff;white-space:nowrap}
+  .plan-name{font-size:0.82rem;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
+  .plan-price{font-size:2rem;font-weight:800;color:var(--text);margin-bottom:4px}
+  .plan-price span{font-size:1rem;font-weight:400;color:var(--dim)}
+  .plan-desc{font-size:0.8rem;color:var(--muted);margin-bottom:20px}
+  .plan-features{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+  .plan-features li{font-size:0.85rem;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+  .plan-features li::before{content:'✓';color:var(--purple-light);font-weight:700;flex-shrink:0}
+  .plan-features li.no::before{content:'✕';color:var(--dim)}
+  .plan-features li.no{color:var(--dim)}
+  .plan-btn{width:100%;padding:13px;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer}
+  .plan-btn.free{background:rgba(255,255,255,0.06);color:var(--muted)}
+  .plan-btn.pro{background:linear-gradient(135deg,var(--purple),var(--purple-light));color:#fff}
+
+  /* CTA Banner */
+  .cta-banner{text-align:center;padding:80px 24px;background:radial-gradient(ellipse at 50% 50%,rgba(123,94,255,0.12) 0%,transparent 70%)}
+  .cta-banner h2{font-size:1.8rem;font-weight:800;color:var(--text);margin-bottom:12px}
+  .cta-banner p{font-size:0.95rem;color:var(--muted);margin-bottom:28px}
+
+  /* Footer */
+  footer{text-align:center;padding:32px 24px;border-top:0.5px solid var(--border);font-size:0.8rem;color:var(--dim)}
+  footer a{color:var(--purple-light);text-decoration:none}
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-logo">AiYo ✨</div>
+  <a href="/" class="nav-cta">Empezar gratis →</a>
+</nav>
+
+<div class="content">
+
+<!-- Hero -->
+<div class="hero">
+  <div class="being">
+    <div class="being-eyes">
+      <div class="being-eye"></div>
+      <div class="being-eye"></div>
+    </div>
+  </div>
+  <div class="hero-badge">🤖 Tu amigo de IA más humano</div>
+  <h1>El amigo que siempre <span>está ahí para ti</span></h1>
+  <p>AiYo te escucha, te ayuda y aprende de ti cada día. Finanzas, motivación, compañía — todo en un solo lugar.</p>
+  <a href="/" class="hero-cta">Crear mi AiYo gratis →</a>
+  <div class="hero-sub">Gratis para siempre · Sin tarjeta requerida</div>
+</div>
+
+<!-- Social proof -->
+<div class="social-proof">
+  <div class="sp-item">⭐⭐⭐⭐⭐ <span>4.9/5 de usuarios</span></div>
+  <div class="sp-item">👥 <span>+500 personas ya usan AiYo</span></div>
+  <div class="sp-item">💬 <span>Conversaciones en español</span></div>
+</div>
+
+<!-- Benefits -->
+<section>
+  <div class="section-title">Todo lo que hace AiYo por ti</div>
+  <div class="section-sub">No es un chatbot más. Es un compañero que aprende y crece contigo.</div>
+  <div class="benefits">
+    <div class="benefit">
+      <div class="benefit-icon">🫂</div>
+      <h3>Siempre presente</h3>
+      <p>Disponible 24/7. Nunca te juzga, nunca se cansa. Solo escucha y apoya.</p>
+    </div>
+    <div class="benefit">
+      <div class="benefit-icon">🧠</div>
+      <h3>Aprende de ti</h3>
+      <p>Recuerda tus gustos, tus metas y tu contexto. Cada conversación lo hace más tuyo.</p>
+    </div>
+    <div class="benefit">
+      <div class="benefit-icon">💰</div>
+      <h3>Finanzas inteligentes</h3>
+      <p>Registra gastos, controla presupuesto y recibe alertas antes de pasarte.</p>
+    </div>
+    <div class="benefit">
+      <div class="benefit-icon">🎙️</div>
+      <h3>Voz real</h3>
+      <p>Habla con él y escúchalo con voces naturales. Como una llamada con un amigo.</p>
+    </div>
+    <div class="benefit">
+      <div class="benefit-icon">🔥</div>
+      <h3>Motivación diaria</h3>
+      <p>Te da el empujón que necesitas cuando más lo necesitas. Sin frases vacías.</p>
+    </div>
+    <div class="benefit">
+      <div class="benefit-icon">🔒</div>
+      <h3>Privado y seguro</h3>
+      <p>Tus conversaciones son tuyas. Nunca compartimos tu información.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Demo -->
+<section style="text-align:center;">
+  <div class="section-title">Así se siente hablar con AiYo</div>
+  <div class="section-sub">Natural, cálido y siempre honesto.</div>
+  <div class="demo">
+    <div class="demo-header">
+      <div class="demo-being">👁️</div>
+      <div>
+        <div class="demo-name">AiYo</div>
+        <div class="demo-status">• contigo ahora</div>
+      </div>
+    </div>
+    <div class="bubble user">Estoy estresado con el trabajo y no sé qué hacer</div>
+    <div class="bubble">Eso se siente pesado. ¿Qué está pasando específicamente? Cuéntame sin filtros.</div>
+    <div class="bubble user">Es que mi jefe no me reconoce el esfuerzo</div>
+    <div class="bubble">Eso duele, en serio. Dar todo y sentir que nadie lo ve es agotador. ¿Cuánto tiempo llevas sintiéndote así?</div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section>
+  <div class="section-title">Lo que dicen quienes ya lo usan</div>
+  <div class="section-sub">Personas reales, experiencias reales.</div>
+  <div class="testimonials">
+    <div class="testimonial">
+      <div class="stars-rating">★★★★★</div>
+      <p>"AiYo me ayudó a organizar mis finanzas cuando estaba perdido. En un mes ahorré lo que no pude en un año."</p>
+      <div class="testimonial-author">— Santiago R., Bogotá</div>
+    </div>
+    <div class="testimonial">
+      <div class="stars-rating">★★★★★</div>
+      <p>"Es lo más cercano a tener un amigo que realmente escucha sin juzgar. Lo uso todos los días."</p>
+      <div class="testimonial-author">— Camila M., Medellín</div>
+    </div>
+    <div class="testimonial">
+      <div class="stars-rating">★★★★★</div>
+      <p>"La voz es increíble. Siento que de verdad estoy hablando con alguien. Muy recomendado."</p>
+      <div class="testimonial-author">— Diego L., Cali</div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section>
+  <div class="section-title">Elige tu plan</div>
+  <div class="section-sub">Empieza gratis. Actualiza cuando quieras.</div>
+  <div class="pricing">
+    <div class="plan">
+      <div class="plan-name">Gratis</div>
+      <div class="plan-price">$0<span>/mes</span></div>
+      <div class="plan-desc">Para empezar a conocerte</div>
+      <ul class="plan-features">
+        <li>Chat ilimitado con AiYo</li>
+        <li>Memoria básica</li>
+        <li>Módulo de finanzas</li>
+        <li class="no">Voz bidireccional</li>
+        <li class="no">Memoria completa</li>
+        <li class="no">Soporte prioritario</li>
+      </ul>
+      <button class="plan-btn free" onclick="location.href='/'">Empezar gratis</button>
+    </div>
+    <div class="plan featured">
+      <div class="plan-badge">🔥 MÁS POPULAR</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">$7.99<span>/mes</span></div>
+      <div class="plan-desc">7 días gratis · Cancela cuando quieras</div>
+      <ul class="plan-features">
+        <li>Todo lo del plan Gratis</li>
+        <li>🎙️ Voz real bidireccional</li>
+        <li>🧠 Memoria completa</li>
+        <li>⚡ Respuestas prioritarias</li>
+        <li>💬 Soporte directo</li>
+        <li>🎁 7 días extra por referido</li>
+      </ul>
+      <button class="plan-btn pro" onclick="location.href='/'">Probar 7 días gratis ✨</button>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--dim);">🛡️ Garantía de 7 días — si no te encanta, te devolvemos el dinero.</div>
+</section>
+
+<!-- CTA Banner -->
+<div class="cta-banner">
+  <h2>¿Listo para conocer a AiYo?</h2>
+  <p>Más de 500 personas ya tienen su compañero de IA. Únete hoy.</p>
+  <a href="/" class="hero-cta">Crear mi AiYo gratis →</a>
+</div>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <p>AiYo &copy; 2025 · <a href="/legal.html">Términos y Privacidad</a> · <a href="mailto:hola@aiyo.app">Contacto</a></p>
+</footer>
+
+<script>
+// Generate stars
+const starsEl = document.getElementById('stars');
+for(let i=0;i<80;i++){
+  const s=document.createElement('div');
+  s.className='star';
+  const size=Math.random()*2+1;
+  s.style.cssText=`width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;animation-delay:${Math.random()*4}s;animation-duration:${2+Math.random()*3}s;opacity:${Math.random()*0.6+0.1}`;
+  starsEl.appendChild(s);
+}
+
+// Read referral code from URL and pass through to app
+const ref = new URLSearchParams(window.location.search).get('ref');
+const ctaBtns = document.querySelectorAll('a[href="/"]');
+if(ref){
+  ctaBtns.forEach(btn => {
+    btn.href = `/?ref=${encodeURIComponent(ref)}`;
+  });
+}
+</script>
+</body>
+</html>
