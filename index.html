@@ -987,6 +987,53 @@ function addMem(text){
 }
 
 // ===== SEND =====
+
+// ===== FINANCIAL CONTEXT FOR AI =====
+async function getFinancialContext(){
+  if(!user) return ``;
+  try{
+    const now=new Date();
+    const anio=now.getFullYear();
+    const mes=String(now.getMonth()+1).padStart(2,'0');
+    const mesStart=`${anio}-${mes}-01`;
+    const [r1,r2,r3]=await Promise.all([
+      sb.from('transactions').select('category_id,amount').eq('user_id',user.id).eq('type','gasto').gte('date',mesStart),
+      sb.from('budgets').select('category_id,amount').eq('user_id',user.id).eq('year',anio).neq('category_id','__expected_income__'),
+      sb.from('incomes').select('amount').eq('user_id',user.id).gte('date',mesStart)
+    ]);
+    const txs=r1.data||[],budgets=r2.data||[],incomes=r3.data||[];
+    if(!budgets.length&&!txs.length) return ``;
+    const bMap={},sMap={};
+    budgets.forEach(b=>{bMap[b.category_id]=Number(b.amount);});
+    txs.forEach(t=>{sMap[t.category_id]=(sMap[t.category_id]||0)+Number(t.amount);});
+    const totalBudget=budgets.reduce((s,b)=>s+Number(b.amount),0);
+    const totalSpent=txs.reduce((s,t)=>s+Number(t.amount),0);
+    const totalIncome=incomes.reduce((s,i)=>s+Number(i.amount),0);
+    const available=totalBudget-totalSpent;
+    const pctTotal=totalBudget>0?Math.round(totalSpent/totalBudget*100):0;
+    const MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const alerts100=[],alerts80=[],breakdown=[];
+    CATS.forEach(cat=>{
+      const bud=bMap[cat.id],spent=sMap[cat.id]||0;
+      if(!bud&&!spent) return;
+      if(bud){
+        const pct=Math.round(spent/bud*100);
+        breakdown.push(`${cat.icon} ${cat.name}: ${fmt(spent)}/${fmt(bud)} (${pct}%)`);
+        if(pct>=100) alerts100.push(cat.name);
+        else if(pct>=80) alerts80.push(cat.name);
+      } else {
+        breakdown.push(`${cat.icon} ${cat.name}: ${fmt(spent)} (sin límite)`);
+      }
+    });
+    let ctx=`\nCONTEXTO FINANCIERO ACTUAL (responde preguntas de dinero DIRECTAMENTE con números exactos, SIN pedir más información):\n- Mes: ${MONTHS[now.getMonth()]} ${anio}\n- Presupuesto total mes: ${fmt(totalBudget)}\n- Gastado: ${fmt(totalSpent)} (${pctTotal}%)\n- Disponible: ${available>=0?fmt(available):'EXCEDIDO en '+fmt(-available)}\n- Ingresos recibidos este mes: ${totalIncome>0?fmt(totalIncome):'no registrados'}`;
+    if(alerts100.length) ctx+=`\n- 🚨 Categorías EXCEDIDAS (>100%): ${alerts100.join(', ')}`;
+    if(alerts80.length)  ctx+=`\n- ⚠️ Categorías en alerta (80-100%): ${alerts80.join(', ')}`;
+    if(breakdown.length) ctx+=`\n- Desglose por categoría: ${breakdown.join(' | ')}`;
+    ctx+='\nRegla: cuando el usuario pregunte por plata, gastos o presupuesto, responde DIRECTAMENTE con estos datos. NUNCA digas que abra el panel de finanzas. NUNCA pidas datos que ya tienes.';
+    return ctx;
+  }catch(e){console.warn('getFinancialContext:',e);return ``;}
+}
+
 async function send(){
   const inp=document.getElementById('ti');
   const text=inp.value.trim();if(!text)return;
@@ -994,6 +1041,7 @@ async function send(){
   msgs++;inp.value='';inp.style.height='';
   addMsg('user',text);
   const typ=addTyping();
+    const finCtx=await getFinancialContext();
 
   const sys=`Eres ${cfg.aiName}, el mejor amigo de ${cfg.name}.
 
@@ -1030,6 +1078,7 @@ CÓDIGOS DE ACCIÓN — la interfaz donde vives tiene botones especiales que se 
 [CLIMA: ciudad] → muestra el clima en tiempo real
 [BUSCAR: término] → muestra botón de búsqueda
 [MAPS: lugar] → muestra botones de navegación
+[FINANZAS] → abre el panel de finanzas con resumen del mes
 
 Ejemplos de uso:
 - "Claro, te ayudo a ir al aeropuerto 🚗 [UBER: Aeropuerto José María Córdova]"
@@ -1073,7 +1122,9 @@ IDs de categoría: masc_comida, masc_vet, dia_comida, dia_restaurante, dia_higie
 Ejemplos:
 "gasté 50000 en gasolina" → [GASTO:{"monto":50000,"descripcion":"Gasolina","categoria":"transp_combustible"}]
 "pagué 150000 en comida del perro" → [GASTO:{"monto":150000,"descripcion":"Comida del perro","categoria":"masc_comida"}]
-Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.`;
+Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.
+Si el usuario quiere ver sus finanzas o presupuesto, incluye al final: [FINANZAS]
+${finCtx}`;
 
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1104,7 +1155,8 @@ Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.`;
       const climaMatch=reply.match(/\[CLIMA:\s*(.+?)\]/);
       const buscarMatch=reply.match(/\[BUSCAR:\s*(.+?)\]/);
       const gastoMatch=reply.match(/\[GASTO:\s*(\{[\s\S]*?\})\]/);
-      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch].forEach(m=>{
+      const finanzasMatch=reply.match(/\[FINANZAS\]/i);
+      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch].forEach(m=>{
         if(m) reply=reply.replace(m[0],'').trim();
       });
       // Extract memory
@@ -1120,6 +1172,7 @@ Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.`;
       if(ytMatch) addYTPrompt(ytMatch[1]);
       if(climaMatch) addClimaPrompt(climaMatch[1]);
       if(buscarMatch) addBuscarPrompt(buscarMatch[1]);
+      if(finanzasMatch) setTimeout(()=>openFinance(),600);
     }
   }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
 }
@@ -1925,7 +1978,7 @@ async function addExpense(){
     amount:amt, type:'gasto', date:new Date().toISOString().slice(0,10)
   });
   if(insErr){ alert('Error guardando: '+insErr.message); return; }
-  checkBudgetAlert(cat, amt);
+  checkAllBudgetAlerts();
   renderFinTab(finTabActive);
 }
 
@@ -1970,8 +2023,8 @@ async function checkBudgetAlert(catId, newAmt){
   const total = (txs||[]).reduce((s,t)=>s+Number(t.amount),0);
   const pct = total/Number(bud.amount)*100;
   const cat = CATS.find(c=>c.id===catId);
-  if(pct>=100) addMsg(`🚨 Parcero, ya te pasaste del presupuesto de *${cat?.name||'esa categoría'}* este mes. Llevás ${fmt(total)} y el límite era ${fmt(Number(bud.amount))}. ¿Quieres ajustar el presupuesto?`,'ai');
-  else if(pct>=80) addMsg(`⚠️ Ojo — llevás el ${Math.round(pct)}% del presupuesto de *${cat?.name||'esa categoría'}* (${fmt(total)} de ${fmt(Number(bud.amount))}). Te quedan ${fmt(Number(bud.amount)-total)} para el resto del mes.`,'ai');
+  if(pct>=100) addMsg('bot',`🚨 Parcero, ya te pasaste del presupuesto de *${cat?.name||'esa categoría'}* este mes. Llevás ${fmt(total)} y el límite era ${fmt(Number(bud.amount))}. ¿Quieres ajustar el presupuesto?`);
+  else if(pct>=80) addMsg('bot',`⚠️ Ojo — llevás el ${Math.round(pct)}% del presupuesto de *${cat?.name||'esa categoría'}* (${fmt(total)} de ${fmt(Number(bud.amount))}). Te quedan ${fmt(Number(bud.amount)-total)} para el resto del mes.`);
 }
 
 async function processReceipt(input){
@@ -2111,6 +2164,41 @@ function initDashboardCharts(){
   });
 }
 
+
+
+async function checkAllBudgetAlerts(){
+  if(!user) return;
+  try{
+    const now=new Date();
+    const anio=now.getFullYear();
+    const mes=String(now.getMonth()+1).padStart(2,'0');
+    const mesStart=`${anio}-${mes}-01`;
+    const [r1,r2]=await Promise.all([
+      sb.from('transactions').select('category_id,amount').eq('user_id',user.id).eq('type','gasto').gte('date',mesStart),
+      sb.from('budgets').select('category_id,amount').eq('user_id',user.id).eq('year',anio).neq('category_id','__expected_income__')
+    ]);
+    const txs=r1.data||[],budgets=r2.data||[];
+    if(!budgets.length) return;
+    const sMap={};
+    txs.forEach(t=>{sMap[t.category_id]=(sMap[t.category_id]||0)+Number(t.amount);});
+    const over100=[],near80=[];
+    budgets.forEach(b=>{
+      const bud=Number(b.amount);
+      if(bud<=0) return;
+      const spent=sMap[b.category_id]||0;
+      const pct=spent/bud*100;
+      const cat=CATS.find(c=>c.id===b.category_id);
+      const name=(cat?.icon||'')+' '+(cat?.name||b.category_id);
+      if(pct>=100) over100.push(`${name}: ${fmt(spent)} de ${fmt(bud)}`);
+      else if(pct>=80) near80.push(`${name}: ${Math.round(pct)}% (quedan ${fmt(bud-spent)})`);
+    });
+    if(over100.length){
+      setTimeout(()=>addMsg('bot',`🚨 Ey, ya te pasaste en:\n${over100.join('\n')}\n¿Quieres ajustar el presupuesto?`),800);
+    } else if(near80.length){
+      setTimeout(()=>addMsg('bot',`⚠️ Ojo que vas alto en:\n${near80.join('\n')}`),800);
+    }
+  }catch(e){console.warn('checkAllBudgetAlerts:',e);}
+}
 
 async function autoRegistrarGasto(jsonStr){
   try{
