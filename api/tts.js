@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${OPENAI_KEY}`
       },
       body: JSON.stringify({
-        model: 'tts-1',
+        model: 'tts-1-hd',
         input: text.slice(0, 500),
         voice: voice,
         response_format: 'mp3'
