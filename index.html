@@ -490,7 +490,6 @@ body::before{
 <!-- SPLASH -->
 <div class="screen active" id="splash">
   <div class="splash-bg"></div>
-  <div id="stars" class="stars"></div>
 
   <!-- Fase 1: intro emocional -->
   <div class="sp-intro">
@@ -772,7 +771,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
 
 // ===== STATE =====
-let cfg={name:'',bio:'',key:'',aiName:'AiYo',elevenKey:'sk_2d6c2db6b7c426834943258deccd6153fa6b3715b55deff2',voiceId:'9ZVfdvBemUaGEWZgCiv0'},
+let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'9ZVfdvBemUaGEWZgCiv0'},
     hist=[],mems=[],mood='',user=null,isPro=false,
     msgs=0,rec=null,lstn=false,authTab='login';
 
@@ -2080,6 +2079,7 @@ function initDashboardCharts(){
 
 async function autoRegistrarGasto(jsonStr){
   try{
+    jsonStr = jsonStr.replace(/```json/gi,'').replace(/```/g,'').trim();
     const clean = jsonStr.trim().replace(/[\u0000-\u001F]/g,' ');
     const g = JSON.parse(clean);
     if(!g.monto || g.monto<=0) return;
@@ -2456,17 +2456,18 @@ function selectVoice(gender, voiceId){
 }
 
 async function previewVoice(voiceId, text){
-  const K=['sk_760494e67ffc0f295','d8602844556eb2ca112f73cc72a4a80'].join('');
   try{
-    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,{
+    const r = await fetch('/api/tts',{
       method:'POST',
-      headers:{'Content-Type':'application/json','xi-api-key':K},
-      body:JSON.stringify({text,model_id:'eleven_turbo_v2_5',voice_settings:{stability:0.5,similarity_boost:0.8}})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text,voiceId})
     });
     if(r.ok){
       const blob=await r.blob();
       const url=URL.createObjectURL(blob);
-      new Audio(url).play();
+      const audio=new Audio(url);
+      audio.onended=()=>URL.revokeObjectURL(url);
+      audio.play();
     }
   }catch(e){console.log('preview error',e);}
 }
