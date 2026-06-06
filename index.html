@@ -1236,21 +1236,42 @@ async function speak(text){
   }catch(e){
     console.warn('ElevenLabs error:',e,'— fallback a Web Speech');
   }
-  // Fallback: Web Speech API (sin costo, sin key)
+  // Fallback: Web Speech API — mejor voz disponible
   if(!('speechSynthesis' in window)) return;
   const utter=new SpeechSynthesisUtterance(clean);
-  utter.lang='es-ES';
-  utter.rate=0.92;
-  utter.pitch=1.0;
   utter.volume=1.0;
-  // Esperar a que las voces carguen si aún no están
+
   let voices=speechSynthesis.getVoices();
   if(!voices.length){
-    await new Promise(r=>{ speechSynthesis.onvoiceschanged=r; setTimeout(r,1000); });
+    await new Promise(r=>{ speechSynthesis.onvoiceschanged=r; setTimeout(r,1500); });
     voices=speechSynthesis.getVoices();
   }
-  const esVoice=voices.find(v=>v.lang.startsWith('es'));
-  if(esVoice) utter.voice=esVoice;
+
+  const isFemale = cfg.voiceId === '3ttovAt5bt3Kk38UGIob';
+  const esVoices = voices.filter(v=>v.lang.startsWith('es'));
+  const femaleNames = ['Paulina','Monica','Mónica','Luciana','Valeria','Laura','Sofia','Sofía','Silvia'];
+  const maleNames   = ['Jorge','Diego','Juan','Carlos'];
+
+  let chosen = null;
+  if(isFemale){
+    chosen = esVoices.find(v=> femaleNames.some(n=>v.name.includes(n)));
+    if(!chosen) chosen = esVoices.find(v=>v.lang==='es-MX'||v.lang==='es-US');
+  } else {
+    chosen = esVoices.find(v=> maleNames.some(n=>v.name.includes(n)));
+    if(!chosen) chosen = esVoices.find(v=>v.lang==='es-ES');
+  }
+  if(!chosen) chosen = esVoices[0];
+
+  if(chosen){
+    utter.voice = chosen;
+    utter.lang  = chosen.lang;
+    utter.rate  = isFemale ? 0.95 : 0.9;
+    utter.pitch = isFemale ? 1.15 : 0.88;
+  } else {
+    utter.lang  = 'es-MX';
+    utter.rate  = 0.92;
+    utter.pitch = isFemale ? 1.15 : 0.88;
+  }
   isSpeaking=true;
   utter.onend=()=>{
     isSpeaking=false; speakEndTime=Date.now();
@@ -2613,6 +2634,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
     <div id="vpSaved" style="display:none;text-align:center;margin-top:16px;color:#a78bfa;font-size:0.88rem;">✅ Voz actualizada</div>
+  <div style="margin-top:10px;padding:10px 14px;background:rgba(167,139,250,0.06);border-radius:8px;font-size:0.78rem;color:var(--muted,#6B6480);text-align:center">
+    💡 La voz usa tecnología de tu dispositivo. En iPhone suena mejor.
+  </div>
   </div>
 </div>
 
