@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AiYo — Social Images 1080x1080</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#09070F;color:#EDE9F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px}
+  h1{font-size:1.4rem;font-weight:700;color:#A78BFA;margin-bottom:6px}
+  .subtitle{font-size:0.88rem;color:#6B6480;margin-bottom:32px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:24px}
+  .card{background:#0E0C1E;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px}
+  .card-title{font-size:0.9rem;font-weight:600;color:#EDE9F8;margin-bottom:4px}
+  .card-desc{font-size:0.78rem;color:#6B6480;margin-bottom:14px}
+  canvas{width:100%;border-radius:10px;display:block;cursor:pointer}
+  .btn{display:block;width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg,#7B5EFF,#A78BFA);border:none;border-radius:10px;color:#fff;font-size:0.88rem;font-weight:600;cursor:pointer;text-align:center}
+  .btn:hover{opacity:0.9}
+  .tip{font-size:0.78rem;color:#6B6480;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>🖼️ AiYo — Imágenes para Redes Sociales</h1>
+<p class="subtitle">6 imágenes 1080×1080px. Haz clic en "Descargar" para guardar cada una. Listas para Facebook, Instagram y WhatsApp.</p>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const SIZE = 1080;
+
+// ── Shared drawing helpers ─────────────────────────────────────────────────────
+function makeCanvas(){
+  const c = document.createElement('canvas');
+  c.width = SIZE; c.height = SIZE;
+  return c;
+}
+
+function drawBackground(ctx, variant = 0){
+  // Deep dark base
+  ctx.fillStyle = '#09070F';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // Gradient overlay
+  const gradients = [
+    ['#1a0a3a','#09070F','#0a1528'],
+    ['#0a1528','#09070F','#1a0a3a'],
+    ['#0d1a0a','#09070F','#1a0a3a'],
+  ];
+  const [c1,c2,c3] = gradients[variant % gradients.length];
+  const g = ctx.createRadialGradient(SIZE/2, SIZE*0.3, 0, SIZE/2, SIZE/2, SIZE*0.8);
+  g.addColorStop(0, c1+'88');
+  g.addColorStop(0.5, c2+'44');
+  g.addColorStop(1, c3+'22');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+}
+
+function drawStars(ctx, seed=42){
+  const rng = (n) => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return ((seed >>> 0) / 0xffffffff) * n; };
+  for(let i=0;i<160;i++){
+    const x = rng(SIZE), y = rng(SIZE);
+    const r = rng(2.5) + 0.5;
+    const a = rng(0.7) + 0.1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${a.toFixed(2)})`;
+    ctx.fill();
+  }
+}
+
+function drawBeing(ctx, cx, cy, r){
+  // Outer glow rings
+  for(let i=3;i>0;i--){
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + i*22, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(123,94,255,${0.04*i})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // Glow fill
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  glow.addColorStop(0, 'rgba(123,94,255,0.25)');
+  glow.addColorStop(1, 'rgba(123,94,255,0)');
+  ctx.beginPath();
+  ctx.arc(cx, cy, r*1.6, 0, Math.PI*2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+  // Circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(123,94,255,0.12)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(123,94,255,0.5)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // Eyes
+  const eyeY = cy - r*0.08;
+  const eyeGap = r*0.32;
+  const eyeR = r*0.14;
+  [-1,1].forEach(side => {
+    ctx.beginPath();
+    ctx.ellipse(cx + side*eyeGap, eyeY, eyeR, eyeR*1.2, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#A78BFA';
+    ctx.fill();
+    // pupil
+    ctx.beginPath();
+    ctx.arc(cx + side*eyeGap + eyeR*0.2, eyeY, eyeR*0.5, 0, Math.PI*2);
+    ctx.fillStyle = '#5B3FCC';
+    ctx.fill();
+    // shine
+    ctx.beginPath();
+    ctx.arc(cx + side*eyeGap - eyeR*0.1, eyeY - eyeR*0.3, eyeR*0.22, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+  });
+}
+
+function drawLogo(ctx, x, y, size=28){
+  ctx.font = `bold ${size}px -apple-system,sans-serif`;
+  ctx.fillStyle = '#A78BFA';
+  ctx.fillText('AiYo', x, y);
+  // star emoji
+  ctx.font = `${size*0.8}px sans-serif`;
+  ctx.fillText('✨', x + size*2.4, y - 2);
+}
+
+function drawText(ctx, text, x, y, {font='bold 64px sans-serif', color='#EDE9F8', align='center', maxWidth, lineHeight=1.25}={}){
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = align;
+  if(maxWidth){
+    // Word wrap
+    const words = text.split(' ');
+    let line = '';
+    let ly = y;
+    const measure = (w) => ctx.measureText(w).width;
+    words.forEach(word => {
+      const test = line ? line + ' ' + word : word;
+      if(measure(test) > maxWidth && line){
+        ctx.fillText(line, x, ly);
+        line = word;
+        ly += parseFloat(font)*lineHeight;
+      } else { line = test; }
+    });
+    ctx.fillText(line, x, ly);
+    return ly;
+  } else {
+    ctx.fillText(text, x, y);
+    return y;
+  }
+}
+
+function drawPill(ctx, text, cx, y, {bg='rgba(123,94,255,0.15)', border='rgba(123,94,255,0.4)', color='#A78BFA', fontSize=32, pad=24}={}){
+  ctx.font = `600 ${fontSize}px -apple-system,sans-serif`;
+  const w = ctx.measureText(text).width + pad*2;
+  const h = fontSize + pad;
+  const rx = cx - w/2;
+  const ry = y - h/2;
+  ctx.beginPath();
+  const r = h/2;
+  ctx.moveTo(rx+r,ry);ctx.lineTo(rx+w-r,ry);ctx.arcTo(rx+w,ry,rx+w,ry+r,r);ctx.lineTo(rx+w,ry+h-r);ctx.arcTo(rx+w,ry+h,rx+w-r,ry+h,r);ctx.lineTo(rx+r,ry+h);ctx.arcTo(rx,ry+h,rx,ry+h-r,r);ctx.lineTo(rx,ry+r);ctx.arcTo(rx,ry,rx+r,ry,r);ctx.closePath();
+  ctx.fillStyle = bg;ctx.fill();
+  ctx.strokeStyle = border;ctx.lineWidth = 2;ctx.stroke();
+  ctx.fillStyle = color;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(text, cx, y + 2);
+}
+
+function drawURL(ctx, y){
+  ctx.font = '500 30px -apple-system,sans-serif';
+  ctx.fillStyle = 'rgba(167,139,250,0.7)';
+  ctx.textAlign = 'center';
+  ctx.fillText('aiyo-pied.vercel.app', SIZE/2, y);
+}
+
+function drawDivider(ctx, cx, cy, w=200){
+  const g = ctx.createLinearGradient(cx-w/2,cy,cx+w/2,cy);
+  g.addColorStop(0,'rgba(123,94,255,0)');
+  g.addColorStop(0.5,'rgba(123,94,255,0.6)');
+  g.addColorStop(1,'rgba(123,94,255,0)');
+  ctx.beginPath();ctx.moveTo(cx-w/2,cy);ctx.lineTo(cx+w/2,cy);
+  ctx.strokeStyle=g;ctx.lineWidth=1.5;ctx.stroke();
+}
+
+// ── IMAGE DEFINITIONS ─────────────────────────────────────────────────────────
+const images = [
+  {
+    title: 'Imagen 1 — "El amigo que siempre está ahí"',
+    desc: 'Hero principal con being de AiYo. Perfecta para feed y anuncios.',
+    filename: 'aiyo-hero.png',
+    draw(ctx){
+      drawBackground(ctx, 0);
+      drawStars(ctx, 42);
+      // Being centered
+      drawBeing(ctx, SIZE/2, SIZE*0.38, 120);
+      // Badge
+      drawPill(ctx, '🤖 TU AMIGO DE IA MÁS HUMANO', SIZE/2, SIZE*0.6, {fontSize:28,pad:20});
+      // Headline
+      ctx.textBaseline = 'alphabetic';
+      drawText(ctx, 'El amigo que', SIZE/2, SIZE*0.68, {font:'bold 88px -apple-system,sans-serif',color:'#EDE9F8'});
+      // gradient text
+      const g = ctx.createLinearGradient(SIZE*0.2, 0, SIZE*0.8, 0);
+      g.addColorStop(0,'#7B5EFF');g.addColorStop(1,'#A78BFA');
+      drawText(ctx, 'siempre está ahí', SIZE/2, SIZE*0.76, {font:'bold 88px -apple-system,sans-serif',color:'placeholder'});
+      ctx.fillStyle = g;
+      ctx.font = 'bold 88px -apple-system,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('siempre está ahí', SIZE/2, SIZE*0.76);
+      drawDivider(ctx, SIZE/2, SIZE*0.82);
+      drawURL(ctx, SIZE*0.9);
+      drawLogo(ctx, SIZE/2 - 55, SIZE*0.97);
+    }
+  },
+  {
+    title: 'Imagen 2 — "Controla tus finanzas con AiYo"',
+    desc: 'Para grupos de finanzas personales y emprendedores.',
+    filename: 'aiyo-finanzas.png',
+    draw(ctx){
+      drawBackground(ctx, 1);
+      drawStars(ctx, 99);
+      // Big emoji
+      ctx.font = '160px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('💰', SIZE/2, SIZE*0.22);
+      // Headline
+      ctx.textBaseline='alphabetic';
+      drawText(ctx,'Controla tus',SIZE/2,SIZE*0.4,{font:'bold 90px -apple-system,sans-serif',color:'#EDE9F8'});
+      const g=ctx.createLinearGradient(0,0,SIZE,0);
+      g.addColorStop(0,'#7B5EFF');g.addColorStop(1,'#A78BFA');
+      ctx.font='bold 90px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle=g;
+      ctx.fillText('finanzas',SIZE/2,SIZE*0.5);
+      // Stats row
+      const stats=[['$0','app extra'],['✓','automático'],['📊','en tiempo real']];
+      stats.forEach(([val,label],i)=>{
+        const x = SIZE*0.22 + i*SIZE*0.28;
+        const y = SIZE*0.62;
+        ctx.fillStyle='rgba(123,94,255,0.12)';
+        ctx.beginPath();ctx.roundRect(x-80,y-50,160,100,14);ctx.fill();
+        ctx.strokeStyle='rgba(123,94,255,0.3)';ctx.lineWidth=1.5;ctx.stroke();
+        ctx.font='bold 34px -apple-system,sans-serif';ctx.fillStyle='#A78BFA';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(val,x,y-12);
+        ctx.font='22px -apple-system,sans-serif';ctx.fillStyle='#6B6480';
+        ctx.fillText(label,x,y+22);
+      });
+      // Sub
+      ctx.textBaseline='alphabetic';
+      drawText(ctx,'Solo habla con AiYo — él lleva la cuenta',SIZE/2,SIZE*0.79,{font:'500 36px -apple-system,sans-serif',color:'#9B8FC0'});
+      drawDivider(ctx,SIZE/2,SIZE*0.84);
+      drawURL(ctx,SIZE*0.9);
+      drawLogo(ctx,SIZE/2-55,SIZE*0.97);
+    }
+  },
+  {
+    title: 'Imagen 3 — "Habla con AiYo — es gratis"',
+    desc: 'CTA directo. Ideal para WhatsApp y stories.',
+    filename: 'aiyo-gratis.png',
+    draw(ctx){
+      drawBackground(ctx, 2);
+      drawStars(ctx, 77);
+      // Being smaller, top right area
+      drawBeing(ctx, SIZE*0.7, SIZE*0.28, 90);
+      // Big badge
+      drawPill(ctx,'🎉 GRATIS PARA SIEMPRE',SIZE/2,SIZE*0.08,{fontSize:32,pad:26,bg:'rgba(34,197,94,0.12)',border:'rgba(34,197,94,0.4)',color:'#86EFAC'});
+      // Main text
+      ctx.textBaseline='alphabetic';
+      drawText(ctx,'Prueba AiYo',SIZE/2,SIZE*0.44,{font:'bold 96px -apple-system,sans-serif',color:'#EDE9F8'});
+      const g=ctx.createLinearGradient(0,0,SIZE,0);
+      g.addColorStop(0,'#7B5EFF');g.addColorStop(1,'#A78BFA');
+      ctx.font='bold 96px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle=g;
+      ctx.fillText('gratis hoy',SIZE/2,SIZE*0.54);
+      // Chat bubble mockup
+      const bx=SIZE*0.12, by=SIZE*0.6, bw=SIZE*0.76, bh=130;
+      ctx.fillStyle='rgba(26,23,48,0.8)';
+      ctx.beginPath();ctx.roundRect(bx,by,bw,bh,20);ctx.fill();
+      ctx.strokeStyle='rgba(123,94,255,0.2)';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.font='36px -apple-system,sans-serif';ctx.fillStyle='#6B6480';ctx.textAlign='left';ctx.textBaseline='middle';
+      ctx.fillText('Dile algo a AiYo...',bx+24,by+bh/2);
+      ctx.font='48px sans-serif';ctx.textAlign='right';
+      ctx.fillText('🎤',bx+bw-20,by+bh/2);
+      // URL big
+      ctx.font='bold 40px -apple-system,sans-serif';ctx.fillStyle='#7B5EFF';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText('aiyo-pied.vercel.app',SIZE/2,SIZE*0.85);
+      drawLogo(ctx,SIZE/2-55,SIZE*0.97);
+    }
+  },
+  {
+    title: 'Imagen 4 — "AiYo aprende de ti cada día"',
+    desc: 'Resalta la memoria adaptativa. Para posts educativos.',
+    filename: 'aiyo-aprende.png',
+    draw(ctx){
+      drawBackground(ctx, 0);
+      drawStars(ctx, 55);
+      // Brain emoji
+      ctx.font='140px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('🧠',SIZE/2,SIZE*0.2);
+      // Timeline dots
+      const items=[
+        ['Día 1','Hola, soy Camila. Me estresa el trabajo.'],
+        ['Día 7','Recuerda tu estrés del martes — ¿cómo estás?'],
+        ['Día 30','Ya sé que amas el café y odias los lunes 😄'],
+      ];
+      items.forEach(([day,text],i)=>{
+        const y=SIZE*0.36+i*SIZE*0.18;
+        const x=SIZE*0.12;
+        // dot
+        ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);
+        ctx.fillStyle=i===2?'#A78BFA':'rgba(123,94,255,0.4)';ctx.fill();
+        // line
+        if(i<2){ctx.beginPath();ctx.moveTo(x,y+12);ctx.lineTo(x,y+SIZE*0.18-12);ctx.strokeStyle='rgba(123,94,255,0.2)';ctx.lineWidth=2;ctx.stroke();}
+        // label
+        ctx.font='bold 28px -apple-system,sans-serif';ctx.fillStyle='#A78BFA';ctx.textAlign='left';ctx.textBaseline='middle';
+        ctx.fillText(day,x+28,y-14);
+        ctx.font='500 30px -apple-system,sans-serif';ctx.fillStyle='#9B8FC0';
+        ctx.fillText(text,x+28,y+18);
+      });
+      drawDivider(ctx,SIZE/2,SIZE*0.74);
+      // Headline
+      ctx.textBaseline='alphabetic';
+      drawText(ctx,'Cuanto más le cuentes,',SIZE/2,SIZE*0.82,{font:'bold 52px -apple-system,sans-serif',color:'#EDE9F8'});
+      const g=ctx.createLinearGradient(0,0,SIZE,0);
+      g.addColorStop(0,'#7B5EFF');g.addColorStop(1,'#A78BFA');
+      ctx.font='bold 52px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle=g;
+      ctx.fillText('más te conoce AiYo.',SIZE/2,SIZE*0.9);
+      drawURL(ctx,SIZE*0.97);
+    }
+  },
+  {
+    title: 'Imagen 5 — "Tu amigo de IA que nunca te juzga"',
+    desc: 'Enfocada en salud mental y apoyo emocional. Alto engagement.',
+    filename: 'aiyo-nojuzga.png',
+    draw(ctx){
+      drawBackground(ctx, 1);
+      drawStars(ctx, 33);
+      // Heart being
+      drawBeing(ctx, SIZE/2, SIZE*0.3, 110);
+      // Quote marks
+      ctx.font='bold 200px Georgia,serif';ctx.fillStyle='rgba(123,94,255,0.08)';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText('"',SIZE*0.06,SIZE*0.42);
+      // Quote text
+      ctx.textBaseline='alphabetic';
+      const quoteFont='italic 500 48px Georgia,serif';
+      drawText(ctx,'A veces solo necesitas',SIZE/2,SIZE*0.55,{font:quoteFont,color:'#C4B8E8',maxWidth:SIZE*0.78,lineHeight:1.4});
+      drawText(ctx,'que alguien te escuche.',SIZE/2,SIZE*0.63,{font:quoteFont,color:'#C4B8E8'});
+      // Big statement
+      drawDivider(ctx,SIZE/2,SIZE*0.69,300);
+      drawText(ctx,'AiYo nunca',SIZE/2,SIZE*0.76,{font:'bold 82px -apple-system,sans-serif',color:'#EDE9F8'});
+      const g=ctx.createLinearGradient(0,0,SIZE,0);
+      g.addColorStop(0,'#7B5EFF');g.addColorStop(1,'#A78BFA');
+      ctx.font='bold 82px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle=g;
+      ctx.fillText('te juzga.',SIZE/2,SIZE*0.85);
+      drawURL(ctx,SIZE*0.92);
+      drawLogo(ctx,SIZE/2-55,SIZE*0.97);
+    }
+  },
+  {
+    title: 'Imagen 6 — "Invita amigos — gana días Pro"',
+    desc: 'Para posts de referidos. Incluye info del programa.',
+    filename: 'aiyo-referidos.png',
+    draw(ctx){
+      drawBackground(ctx, 2);
+      drawStars(ctx, 88);
+      // Gift emoji
+      ctx.font='130px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('🎁',SIZE/2,SIZE*0.18);
+      // Headline
+      ctx.textBaseline='alphabetic';
+      drawText(ctx,'Invita amigos,',SIZE/2,SIZE*0.36,{font:'bold 86px -apple-system,sans-serif',color:'#EDE9F8'});
+      const g=ctx.createLinearGradient(0,0,SIZE,0);
+      g.addColorStop(0,'#7B5EFF');g.addColorStop(1,'#A78BFA');
+      ctx.font='bold 86px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillStyle=g;
+      ctx.fillText('gana Pro gratis.',SIZE/2,SIZE*0.46);
+      // Steps
+      const steps=[
+        ['1','Regístrate y obtén tu código'],
+        ['2','Compártelo con tus amigos'],
+        ['3','Cada amigo = 7 días Pro gratis'],
+      ];
+      steps.forEach(([num,label],i)=>{
+        const y=SIZE*0.56+i*SIZE*0.11;
+        const cx=SIZE/2;
+        // circle
+        ctx.beginPath();ctx.arc(cx-SIZE*0.3,y,28,0,Math.PI*2);
+        ctx.fillStyle='rgba(123,94,255,0.2)';ctx.fill();
+        ctx.strokeStyle='rgba(123,94,255,0.5)';ctx.lineWidth=2;ctx.stroke();
+        ctx.font='bold 32px -apple-system,sans-serif';ctx.fillStyle='#A78BFA';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(num,cx-SIZE*0.3,y+2);
+        ctx.font='500 36px -apple-system,sans-serif';ctx.fillStyle='#C4B8E8';ctx.textAlign='left';ctx.textBaseline='middle';
+        ctx.fillText(label,cx-SIZE*0.22,y+2);
+      });
+      drawDivider(ctx,SIZE/2,SIZE*0.88,400);
+      drawURL(ctx,SIZE*0.94);
+      drawLogo(ctx,SIZE/2-55,SIZE*0.99);
+    }
+  },
+];
+
+// ── Render UI ─────────────────────────────────────────────────────────────────
+const grid = document.getElementById('grid');
+
+images.forEach((img, idx) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'card-title';
+  titleEl.textContent = img.title;
+
+  const descEl = document.createElement('div');
+  descEl.className = 'card-desc';
+  descEl.textContent = img.desc;
+
+  const canvas = makeCanvas();
+  const ctx = canvas.getContext('2d');
+
+  // Draw
+  try { img.draw(ctx); } catch(e){ console.error('Error drawing image', idx, e); }
+
+  // Render at 360px display but canvas is 1080
+  canvas.style.imageRendering = 'auto';
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.textContent = `⬇️ Descargar ${img.filename}`;
+  btn.onclick = () => {
+    const a = document.createElement('a');
+    a.download = img.filename;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  tip.textContent = '1080×1080px · Haz clic en la imagen para previsualizar';
+
+  canvas.onclick = () => window.open(canvas.toDataURL('image/png'), '_blank');
+
+  card.appendChild(titleEl);
+  card.appendChild(descEl);
+  card.appendChild(canvas);
+  card.appendChild(btn);
+  card.appendChild(tip);
+  grid.appendChild(card);
+});
+
+console.log('✅ AiYo social images rendered — 6 canvases @ 1080x1080px');
+</script>
+</body>
+</html>
