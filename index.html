@@ -319,6 +319,27 @@ body::before{
 .s{position:absolute;background:white;border-radius:50%;animation:tw var(--d) ease-in-out infinite}
 @keyframes tw{0%,100%{opacity:0.04}50%{opacity:var(--b)}}
 
+/* ===== RESERVA CARD ===== */
+.reserva-card{background:var(--surface);border:1px solid rgba(167,139,250,0.25);border-radius:20px;overflow:hidden;margin:4px 0 8px;max-width:300px}
+.reserva-hdr{background:linear-gradient(135deg,rgba(123,94,255,0.18),rgba(226,185,122,0.08));padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)}
+.reserva-ttl{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
+.reserva-mod{font-size:11px;color:var(--violet2);background:rgba(123,94,255,0.12);border:1px solid rgba(123,94,255,0.2);border-radius:20px;padding:3px 10px;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+.reserva-mod:active{background:rgba(123,94,255,0.28)}
+.reserva-body{padding:12px 16px;display:flex;flex-direction:column;gap:9px}
+.reserva-row{display:flex;align-items:center;gap:10px}
+.reserva-ico{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.reserva-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+.reserva-val{font-size:13px;color:var(--text);font-weight:500}
+.reserva-counter{display:flex;align-items:center;gap:12px;margin-top:2px}
+.rcnt-btn{width:28px;height:28px;border-radius:50%;background:rgba(123,94,255,0.12);border:1px solid rgba(123,94,255,0.25);color:var(--violet2);font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;user-select:none;flex-shrink:0}
+.rcnt-btn:active{background:rgba(123,94,255,0.3);transform:scale(0.88)}
+.rcnt-val{font-size:20px;font-weight:700;color:var(--text);min-width:26px;text-align:center}
+.reserva-foot{padding:0 16px 14px;display:flex;flex-direction:column;gap:7px}
+.reserva-wa{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;border-radius:12px;padding:12px 16px;color:white;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;transition:transform 0.2s;width:100%;box-sizing:border-box}
+.reserva-wa:active{transform:scale(0.97)}
+.reserva-search{display:flex;align-items:center;justify-content:center;gap:7px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 16px;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:none;transition:all 0.2s;width:100%;box-sizing:border-box}
+.reserva-search:hover{border-color:rgba(123,94,255,0.3);color:var(--violet2)}
+
 /* ===== SPLASH EMOCIONAL ===== */
 #splash{background:var(--void);align-items:center;justify-content:center;overflow:hidden}
 .splash-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 20%, rgba(123,94,255,0.15) 0%, transparent 70%),radial-gradient(ellipse 40% 40% at 20% 80%, rgba(226,185,122,0.08) 0%, transparent 60%);opacity:0.15;animation:bgAwaken 2.5s ease forwards 5.8s}
@@ -1095,6 +1116,7 @@ CÓDIGOS DE ACCIÓN — la interfaz donde vives tiene botones especiales que se 
 [BUSCAR: término] → muestra botón de búsqueda
 [MAPS: lugar] → muestra botones de navegación
 [FINANZAS] → abre el panel de finanzas con resumen del mes
+[RESERVA: {"restaurante":"Nombre","personas":N,"fecha":"fecha","hora":"hora","telefono":"número si lo sabes o vacío"}] → muestra card de reserva con botón WhatsApp directo
 
 Ejemplos de uso:
 - "Claro, te ayudo a ir al aeropuerto 🚗 [UBER: Aeropuerto José María Córdova]"
@@ -1140,6 +1162,14 @@ Ejemplos:
 "pagué 150000 en comida del perro" → [GASTO:{"monto":150000,"descripcion":"Comida del perro","categoria":"masc_comida"}]
 Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.
 Si el usuario quiere ver sus finanzas o presupuesto, incluye al final: [FINANZAS]
+
+RESERVAS EN RESTAURANTES:
+Cuando el usuario quiera reservar mesa en un restaurante, bar o local similar:
+1. Asegúrate de tener: nombre del restaurante, número de personas, fecha y hora.
+2. Si falta algún dato, pregúntalo de forma natural antes de continuar.
+3. Cuando tengas todo, confirma y agrega al FINAL:
+[RESERVA:{"restaurante":"nombre exacto","personas":N,"fecha":"fecha en español ej: sábado 7 de junio","hora":"ej: 8pm","telefono":"prefijo+número si lo conoces, vacío si no. Colombia: 573001234567"}]
+No inventes teléfonos. Si no lo sabes con certeza, deja "telefono":"".
 
 MEMORIA INTELIGENTE — detecta y guarda automáticamente:
 Cuando el usuario mencione personas cercanas (mi novia X, mi jefe Y, mi mamá), rutinas habituales (siempre medito, normalmente voy al gym, todos los días), gustos específicos (me gusta la emisora X, prefiero rock, siempre escucho Y) o compromisos con fecha (hoy tengo reunión, mañana veo a María, el viernes a las 8pm), agrega al FINAL una sola línea:
@@ -1187,7 +1217,8 @@ ${finCtx}`;
       const finanzasMatch=reply.match(/\[FINANZAS\]/i);
       const contextoMatch=reply.match(/\[CONTEXTO:\s*(\{[\s\S]*?\})\]/);
       const timerMatch=reply.match(/\[TIMER:\s*(\{[\s\S]*?\})\]/);
-      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch,contextoMatch,timerMatch].forEach(m=>{
+      const reservaMatch=reply.match(/\[RESERVA:\s*(\{[\s\S]*?\})\]/);
+      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch,contextoMatch,timerMatch,reservaMatch].forEach(m=>{
         if(m) reply=reply.replace(m[0],'').trim();
       });
       // Extract memory
@@ -1199,6 +1230,7 @@ ${finCtx}`;
       if(gastoMatch){ autoRegistrarGasto(gastoMatch[1]); }
       if(contextoMatch){ autoSaveContexto(contextoMatch[1]); }
       if(timerMatch){ autoStartTimer(timerMatch[1]); }
+      if(reservaMatch){ addReservaCard(reservaMatch[1]); }
       if(mapsMatch) addMapsPrompt(mapsMatch[1]);
       if(uberMatch) addUberPrompt(uberMatch[1]);
       if(rappiMatch) addRappiPrompt(rappiMatch[1]);
@@ -1396,6 +1428,100 @@ function toggleVoice(){
 
 
 
+
+// ===== RESERVAS EN RESTAURANTES =====
+let reservaIdx=0;
+
+function addReservaCard(dataStr){
+  try{
+    const raw=dataStr.replace(/```json|```/g,'').trim();
+    const data=JSON.parse(raw);
+    const id='rv'+(++reservaIdx);
+    window[id]={
+      restaurante:data.restaurante||'',
+      personas:Math.max(1,parseInt(data.personas)||2),
+      fecha:data.fecha||'hoy',
+      hora:data.hora||'',
+      telefono:normalizePhone(data.telefono||'')
+    };
+    const area=document.getElementById('chat');
+    const wrap=document.createElement('div');
+    wrap.className='msg';
+    wrap.innerHTML=`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div style="flex:1" id="${id}"></div>`;
+    area.appendChild(wrap);
+    area.scrollTop=area.scrollHeight;
+    renderReservaCard(id);
+  }catch(e){console.warn('addReservaCard:',e);}
+}
+
+function normalizePhone(phone){
+  if(!phone) return '';
+  const d=phone.replace(/\D/g,'');
+  if(!d) return '';
+  if(d.length===10&&d.startsWith('3')) return '57'+d;
+  if(d.length>=10) return d;
+  return '';
+}
+
+function renderReservaCard(id){
+  const d=window[id];
+  const el=document.getElementById(id);
+  if(!d||!el) return;
+  const p=d.personas;
+  const waMsg=encodeURIComponent(`Hola, quisiera reservar una mesa para ${p} persona${p===1?'':'s'} el ${d.fecha} a las ${d.hora}. ¿Tienen disponibilidad?`);
+  const waUrl=d.telefono?`https://wa.me/${d.telefono}?text=${waMsg}`:'';
+  const searchUrl=`https://www.google.com/search?q=${encodeURIComponent(d.restaurante+' WhatsApp teléfono reservas')}`;
+  el.innerHTML=`
+  <div class="reserva-card">
+    <div class="reserva-hdr">
+      <div class="reserva-ttl">🍽️ ${d.restaurante}</div>
+      <button class="reserva-mod" onclick="modifyReserva('${id}')">✏️ Modificar</button>
+    </div>
+    <div class="reserva-body">
+      <div class="reserva-row">
+        <span class="reserva-ico">👥</span>
+        <div style="flex:1">
+          <div class="reserva-lbl">Personas</div>
+          <div class="reserva-counter">
+            <button class="rcnt-btn" onclick="changeReservaPersonas('${id}',-1)">−</button>
+            <span class="rcnt-val" id="${id}_p">${p}</span>
+            <button class="rcnt-btn" onclick="changeReservaPersonas('${id}',1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="reserva-row">
+        <span class="reserva-ico">📅</span>
+        <div><div class="reserva-lbl">Fecha</div><div class="reserva-val">${d.fecha}</div></div>
+      </div>
+      <div class="reserva-row">
+        <span class="reserva-ico">🕐</span>
+        <div><div class="reserva-lbl">Hora</div><div class="reserva-val">${d.hora}</div></div>
+      </div>
+      ${d.telefono?`<div class="reserva-row"><span class="reserva-ico">📞</span><div><div class="reserva-lbl">Teléfono</div><div class="reserva-val" style="color:var(--mint)">+${d.telefono}</div></div></div>`:''}
+    </div>
+    <div class="reserva-foot">
+      ${waUrl
+        ?`<a href="${waUrl}" target="_blank" class="reserva-wa">💬 Reservar por WhatsApp</a>`
+        :`<p style="text-align:center;font-size:11px;color:var(--muted);margin:0 0 4px">No tengo el número de este restaurante</p>
+          <a href="${searchUrl}" target="_blank" class="reserva-search">🔍 Buscar número en Google</a>`
+      }
+    </div>
+  </div>`;
+  const area=document.getElementById('chat');
+  if(area) area.scrollTop=area.scrollHeight;
+}
+
+function changeReservaPersonas(id,delta){
+  const d=window[id];if(!d) return;
+  d.personas=Math.max(1,Math.min(30,d.personas+delta));
+  renderReservaCard(id);
+}
+
+function modifyReserva(id){
+  const d=window[id];if(!d) return;
+  const ti=document.getElementById('ti');
+  if(ti){ ti.value=`Modifica la reserva en ${d.restaurante}: `;ti.focus();autoH(ti); }
+}
 
 // ===== TAREA 1: MEMORIA EXPANDIDA — user_context =====
 async function loadUserContext(){
