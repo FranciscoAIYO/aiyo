@@ -1229,14 +1229,16 @@ ${finCtx}`;
       const ytMatch=reply.match(/\[YOUTUBE:\s*(.+?)\]/);
       const climaMatch=reply.match(/\[CLIMA:\s*(.+?)\]/);
       const buscarMatch=reply.match(/\[BUSCAR:\s*(.+?)\]/);
-      const gastoMatch=reply.match(/\[GASTO:\s*(\{[\s\S]*?\})\]/);
+      const gastoMatch=reply.match(/\[GASTO:\s*(\{[\s\S]*?\})\s*\]/);
       const finanzasMatch=reply.match(/\[FINANZAS\]/i);
-      const contextoMatch=reply.match(/\[CONTEXTO:\s*(\{[\s\S]*?\})\]/);
-      const timerMatch=reply.match(/\[TIMER:\s*(\{[\s\S]*?\})\]/);
-      const reservaMatch=reply.match(/\[RESERVA:\s*(\{[\s\S]*?\})\]/);
+      const contextoMatch=reply.match(/\[CONTEXTO:\s*(\{[\s\S]*?\})\s*\]/);
+      const timerMatch=reply.match(/\[TIMER:\s*(\{[\s\S]*?\})\s*\]/);
+      const reservaMatch=reply.match(/\[RESERVA:\s*(\{[\s\S]*?\})\s*\]/);
       [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch,contextoMatch,timerMatch,reservaMatch].forEach(m=>{
         if(m) reply=reply.replace(m[0],'').trim();
       });
+      // Limpieza global por si quedan tags invisibles (espacios extra, múltiples ocurrencias)
+      reply=reply.replace(/\[CONTEXTO:\s*\{[\s\S]*?\}\s*\]/g,'').replace(/\[TIMER:\s*\{[\s\S]*?\}\s*\]/g,'').trim();
       // Extract memory
       const mm=reply.match(/\[MEMORIA:\s*(.+?)\]/);
       if(mm){addMem(mm[1]);reply=reply.replace(mm[0],'').trim();}
