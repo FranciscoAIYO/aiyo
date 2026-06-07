@@ -27,15 +27,16 @@ AiYo no es un chatbot ni un asistente. Es un amigo de IA que:
 - Referidos: 7 días Pro por cada amigo que se una
 
 ## TABLAS SUPABASE
-- profiles: name, bio, ai_name, voice_id, anthropic_key, is_pro, referral_code, referred_by, pro_trial_end
+- profiles: name, bio, ai_name, voice_id, anthropic_key, is_pro, referral_code, referred_by, pro_trial_end, notification_enabled
 - transactions: user_id, category_id(text), description, amount, type, date
 - budgets: user_id, category_id(text), amount, period, year
 - incomes: user_id, description, amount, type, date
 - memories: user_id, content
 - messages: user_id, role, content
 - analytics: user_id, event, metadata, created_at
-- user_context: user_id, category, key, value, updated_at (PENDIENTE)
-- whatsapp_leads: phone, name, message, status, created_at (PENDIENTE)
+- user_context: user_id, category, key, value, updated_at ✅
+- whatsapp_leads: phone, name, message, status, created_at ✅
+- facebook_posts_log: day_number, title, content_preview, published_at ✅
 
 ---
 
@@ -51,20 +52,39 @@ AiYo no es un chatbot ni un asistente. Es un amigo de IA que:
 - [x] Landing page (landing.html)
 - [x] Página Facebook "AiYo"
 - [x] 30 posts Facebook listos
-- [x] Panel admin (admin.html)
+- [x] Panel admin completo (admin.html) — password: aiyo2024
 - [x] Splash emocional con animaciones
 - [x] Modo Pro (voz solo para Pro)
 - [x] Modal upgrade cuando free intenta usar voz
 - [x] Risa cálida de AiYo
 - [x] Eco fix (delay 1800ms)
 - [x] Tag [FINANZAS] abre panel automáticamente
+- [x] Memoria expandida (user_context) — tabla + auto-detección [CONTEXTO:]
+- [x] Momentos proactivos (checkDailyMoments)
+- [x] Temporizador por voz ([TIMER:])
+- [x] Modo conducción 🚗 con noticias, música, resumen
+- [x] Notificaciones nativas (Notification API)
+- [x] Reservas en restaurantes ([RESERVA:] + card WhatsApp)
+- [x] Bot WhatsApp (/api/whatsapp.js) — Twilio webhook + Claude + leads
+- [x] Publicador automático Facebook (/api/facebook-post.js) — cron 8am
+- [x] Email de bienvenida (/api/welcome-email.js) — Resend.com
+- [x] SEO landing.html — Schema.org, OG mejorado, Twitter Card completo
+- [x] UX index.html — notif contextual, typing variable, 24h notif, WA share, código en menú
+- [x] Optimización costos Claude — Haiku (<50 chars), Sonnet (complejo), hist 10 msgs, mem 500 chars
 
 ---
 
-## 🟡 EN CONSTRUCCIÓN (Claude Code trabajando)
-- [ ] Bot WhatsApp (/api/whatsapp.js)
-- [ ] Publicador automático Facebook (/api/facebook-post.js)
-- [ ] Panel admin completo
+## 🟡 PENDIENTE DE CONFIGURAR (variables de entorno en Vercel)
+- [ ] SB_SERVICE_KEY: Supabase → Settings → API → service_role key
+- [ ] RESEND_API_KEY: resend.com para emails de bienvenida
+- [ ] FB_ACCESS_TOKEN: Facebook Graph API token de página
+- [ ] FB_PAGE_ID: ID de la página de Facebook AiYo
+- [ ] CRON_SECRET: Secret para autenticar el cron de Facebook (cualquier string)
+- [ ] NEWSAPI_KEY: newsapi.org para noticias en modo carro
+
+## 🟡 PENDIENTE DE EJECUTAR (SQL en Supabase)
+- [ ] migration_user_context.sql (user_context, notification_enabled)
+- [ ] migration_social.sql (whatsapp_leads, facebook_posts_log)
 
 ---
 
@@ -152,8 +172,14 @@ AiYo habla en primera persona plural cuando hay contexto:
 ---
 
 ## 🔑 VARIABLES DE ENTORNO (Vercel)
-- OPENAI_KEY: sk-proj-KnHj... (TTS voz)
+- OPENAI_KEY: sk-proj-KnHj... (TTS voz) ✅ configurada
 - ELEVEN_KEY: dd2937... (backup, actualmente bloqueado por CORS)
+- SB_SERVICE_KEY: Supabase service_role key (para admin-stats, whatsapp, facebook)
+- RESEND_API_KEY: Resend.com API key (emails bienvenida)
+- FB_ACCESS_TOKEN: Facebook Graph API token de página
+- FB_PAGE_ID: ID numérico de la página Facebook AiYo
+- CRON_SECRET: Secret para verificar llamadas del cron de Facebook
+- NEWSAPI_KEY: newsapi.org key (noticias modo carro)
 
 ## 💳 PAGOS
 - PayPal Plan ID: [PAYPAL_PLAN_ID_EN_CONFIG]

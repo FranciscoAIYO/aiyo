@@ -241,9 +241,9 @@ body::before{
 .msg:not(.u) .bbl{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:5px;color:var(--text)}
 .msg.u .bbl{background:linear-gradient(135deg,var(--violet),#9B6FFF);color:white;border-bottom-right-radius:5px}
 .typing-bbl{display:flex;gap:4px;padding:6px 2px}
-.typing-bbl span{width:6px;height:6px;border-radius:50%;background:var(--violet2);animation:typeDot 1.2s ease-in-out infinite}
-.typing-bbl span:nth-child(2){animation-delay:0.2s}
-.typing-bbl span:nth-child(3){animation-delay:0.4s}
+.typing-bbl span{width:6px;height:6px;border-radius:50%;background:var(--violet2);animation:typeDot var(--spd,1.2s) ease-in-out infinite}
+.typing-bbl span:nth-child(2){animation-delay:calc(var(--spd,1.2s) * 0.17)}
+.typing-bbl span:nth-child(3){animation-delay:calc(var(--spd,1.2s) * 0.34)}
 @keyframes typeDot{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1}}
 
 /* Spotify card */
@@ -732,6 +732,7 @@ body::before{
       <div class="hbtn" id="carModeBtn" onclick="toggleCarMode()" title="Modo carro">🚗</div>
       <div class="hbtn" id="voiceToggle" onclick="toggleVoice()" title="Voz">🔊</div>
       <div class="hbtn" onclick="openFinance()" title="Finanzas">💰</div>
+      <div class="hbtn" onclick="shareAppWhatsApp()" title="Compartir AiYo por WhatsApp">📲</div>
       <div class="hbtn" onclick="toggleHdrMenu()" title="Más opciones" id="hdrMenuBtn">⋯</div>
     </div>
     <!-- Menú desplegable -->
@@ -740,7 +741,7 @@ body::before{
       <div class="hmenu-item" onclick="openMemory();toggleHdrMenu()">🧠 Mis recuerdos</div>
       <div class="hmenu-item" onclick="openVoicePicker();toggleHdrMenu()">🎙️ Cambiar voz</div>
       <div class="hmenu-item" onclick="openFeedback();toggleHdrMenu()">💬 Dar feedback</div>
-      <div class="hmenu-item" onclick="showReferralShare();toggleHdrMenu()" style="color:#A78BFA;">🎁 Invita amigos — gana Pro</div>
+      <div class="hmenu-item" onclick="showReferralShare();toggleHdrMenu()" style="color:#A78BFA;">🎁 Invita — código: <span id="menuRefCode" style="font-weight:700;font-family:monospace;letter-spacing:1px">—</span></div>
       <div class="hmenu-item" style="border-top:0.5px solid var(--border);margin-top:4px;padding-top:8px;color:#f87171" onclick="doLogout()">↪ Salir</div>
     </div>
   </div>
@@ -888,6 +889,11 @@ async function saveProfile(){
     if(error){alert('Error: '+error.message);return;}
     trackEvent('signup',{referred_by:pendingRefCode||null});
     if(pendingRefCode) processReferral(pendingRefCode);
+    // Email de bienvenida (fire and forget)
+    if(user?.email){
+      fetch('/api/welcome-email',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:user.email,name,referralCode:refCode})}).catch(()=>{});
+    }
     launch(true);
     setTimeout(()=>showReferralShare(),800);
   }catch(e){alert('Error guardando: '+e.message);}
@@ -899,6 +905,15 @@ function launch(isNew=false){
   document.getElementById('hdrName').innerHTML=cfg.aiName+(isPro?'<span class="pro">⭐ PRO</span>':'');
   if(isPro)document.getElementById('proBadge').style.display='inline-flex';
   const refBtnArea=document.getElementById('referralBtnArea');if(refBtnArea&&referralCode){refBtnArea.style.display='block';document.getElementById('refBtnCode').textContent=referralCode;}
+  // Mostrar código en el menú
+  const menuRefEl=document.getElementById('menuRefCode');
+  if(menuRefEl&&referralCode) menuRefEl.textContent=referralCode;
+  // Notificación 24h de inactividad
+  const lastVisit=parseInt(localStorage.getItem('aiyo_last_visit')||'0');
+  if(lastVisit>0&&Date.now()-lastVisit>86400000&&'Notification'in window&&Notification.permission==='granted'){
+    setTimeout(()=>showNativeNotification(`${cfg.aiName} aquí 👋`,`${cfg.name}, hace más de 24h que no charlamos. ¿Cómo va todo?`),3000);
+  }
+  localStorage.setItem('aiyo_last_visit',Date.now().toString());
   const area=document.getElementById('chat');
   area.innerHTML='';
   hist.forEach(m=>{
@@ -1005,10 +1020,11 @@ function addMsg(role,text){
   }
 }
 
-function addTyping(){
+function addTyping(msgLen=50){
   const area=document.getElementById('chat');
   const d=document.createElement('div');d.className='msg';d.id='typ';
-  d.innerHTML=`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div class="bbl"><div class="typing-bbl"><span></span><span></span><span></span></div></div>`;
+  const spd=msgLen>150?'1.8s':msgLen>60?'1.4s':'1.0s';
+  d.innerHTML=`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div class="bbl"><div class="typing-bbl" style="--spd:${spd}"><span></span><span></span><span></span></div></div>`;
   area.appendChild(d);area.scrollTop=area.scrollHeight;return d;
 }
 
@@ -1075,7 +1091,7 @@ async function send(){
   msgs++;inp.value='';inp.style.height='';
   if(msgs===1) trackEvent('first_message');
   addMsg('user',text);
-  const typ=addTyping();
+  const typ=addTyping(text.length);
   // Modo carro: comandos especiales antes de llamar a Claude
   if(carMode){ const handled=await handleCarModeCommand(text); if(handled){typ.remove();return;} }
   const finCtx=await getFinancialContext();
@@ -1140,7 +1156,7 @@ Si el usuario menciona música o quiere relajarse/concentrarse/motivarse, sugier
 Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade al final: [MEMORIA: dato concreto]
 
 ${cfg.bio?`Perfil de ${cfg.name}: ${cfg.bio}`:''}
-${mems.length?`Recuerdas de ${cfg.name}: ${mems.slice(0,10).join(', ')}`:''}
+${mems.length?`Recuerdas de ${cfg.name}: ${mems.slice(0,10).join(', ').slice(0,500)}`:''}
 ${mood?`Estado actual: ${mood}`:''}
 ${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][n.getDay()];const t=h<6?'madrugada':h<12?'manana':h<14?'mediodia':h<19?'tarde':'noche';const w=n.getDay()===0||n.getDay()===6;const mo=n.getDay()===1;const fr=n.getDay()===5;const mins=String(n.getMinutes()).padStart(2,'0');
   const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -1189,7 +1205,7 @@ ${finCtx}`;
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:1000,system:sys,messages:hist.slice(-20)})
+      body:JSON.stringify({model:text.length<50?'claude-haiku-4-5-20251001':'claude-sonnet-4-6',max_tokens:1000,system:sys,messages:hist.slice(-10)})
     });
     const data=await r.json();typ.remove();
     if(!r.ok){addMsg('bot',`Error: ${data.error?.message||'API key inválida'}`);return;}
@@ -1536,6 +1552,22 @@ async function loadUserContext(){
   }catch(e){console.warn('loadUserContext:',e);}
 }
 
+function buildContextNotif(category, key, value) {
+  if (category === 'personas') return `💜 Recordé que tu ${key} es ${value}`;
+  if (category === 'rutina') {
+    const accion = key === 'meditacion' ? 'meditas' : key === 'gym' ? 'vas al gym' : key;
+    return `💜 Apunté que ${accion} ${value}`;
+  }
+  if (category === 'gustos') {
+    if (key === 'emisora') return `💜 Sé que escuchas ${value}`;
+    if (key === 'musica') return `💜 Sé que te gusta ${value}`;
+    return `💜 Recordé: te gusta ${value}`;
+  }
+  if (category === 'compromisos') return `💜 Apunté el compromiso: ${value}`;
+  if (category === 'preferencias') return `💜 Recordé tu preferencia: ${value}`;
+  return `💜 Me apunté: ${value}`;
+}
+
 async function saveUserContext(category,key,value){
   if(!user) return;
   userCtx[category]=userCtx[category]||{};
@@ -1547,10 +1579,10 @@ async function saveUserContext(category,key,value){
     );
     const area=document.getElementById('chat');
     const notif=document.createElement('div');
-    notif.style.cssText='text-align:center;font-size:0.75rem;color:var(--gold2);padding:3px 0;opacity:1;transition:opacity 1s';
-    notif.textContent=`💛 Apuntado: ${key} = ${value}`;
+    notif.style.cssText='text-align:center;font-size:0.8rem;color:var(--violet2);padding:4px 0;opacity:1;transition:opacity 1s';
+    notif.textContent=buildContextNotif(category, key, value);
     if(area){area.appendChild(notif);area.scrollTop=area.scrollHeight;}
-    setTimeout(()=>{notif.style.opacity='0';setTimeout(()=>notif.remove(),1000);},3000);
+    setTimeout(()=>{notif.style.opacity='0';setTimeout(()=>notif.remove(),1000);},3500);
   }catch(e){console.warn('saveUserContext:',e);}
 }
 
@@ -2769,6 +2801,12 @@ function copyRefLink(){
 function shareWhatsApp(){
   const url=`https://aiyo-pied.vercel.app?ref=${referralCode}`;
   const msg=encodeURIComponent(`Descubrí AiYo, el amigo de IA más humano que existe 🤖❤️\nTe ayuda con todo: charla, finanzas, motivación.\nPruébalo gratis: ${url}`);
+  window.open(`https://wa.me/?text=${msg}`,'_blank');
+}
+
+function shareAppWhatsApp(){
+  const url=referralCode?`https://aiyo-pied.vercel.app?ref=${referralCode}`:'https://aiyo-pied.vercel.app';
+  const msg=encodeURIComponent(`Descubrí AiYo y es increíble 💜 Es como tener un amigo de IA que de verdad te conoce.\nPruébalo gratis: ${url}`);
   window.open(`https://wa.me/?text=${msg}`,'_blank');
 }
 

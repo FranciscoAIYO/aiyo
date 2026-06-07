@@ -2,7 +2,17 @@
   "rewrites": [
     { "source": "/api/tts", "destination": "/api/tts.js" },
     { "source": "/api/news", "destination": "/api/news.js" },
+    { "source": "/api/whatsapp", "destination": "/api/whatsapp.js" },
+    { "source": "/api/facebook-post", "destination": "/api/facebook-post.js" },
+    { "source": "/api/welcome-email", "destination": "/api/welcome-email.js" },
+    { "source": "/api/admin-stats", "destination": "/api/admin-stats.js" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/facebook-post",
+      "schedule": "0 13 * * *"
+    }
   ],
   "headers": [
     {
