@@ -708,6 +708,7 @@ body::before{
       <div class="hdr-status" id="hdrStatus"><span class="pulse"></span>Contigo siempre</div>
     </div>
     <div class="hdr-btns">
+      <div class="hbtn" id="carModeBtn" onclick="toggleCarMode()" title="Modo carro">🚗</div>
       <div class="hbtn" id="voiceToggle" onclick="toggleVoice()" title="Voz">🔊</div>
       <div class="hbtn" onclick="openFinance()" title="Finanzas">💰</div>
       <div class="hbtn" onclick="toggleHdrMenu()" title="Más opciones" id="hdrMenuBtn">⋯</div>
@@ -774,7 +775,8 @@ const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persis
 // ===== STATE =====
 let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'nova'},
     hist=[],mems=[],mood='',user=null,isPro=false,
-    msgs=0,rec=null,lstn=false,authTab='login';
+    msgs=0,rec=null,lstn=false,authTab='login',
+    carMode=false,userCtx={},activeTimers=[];
 
 // ===== STARS =====
 (()=>{const s=document.getElementById('stars');for(let i=0;i<50;i++){const el=document.createElement('div');el.className='s';const sz=Math.random()*1.5+0.5;el.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${3+Math.random()*5}s;--b:${0.2+Math.random()*0.4};animation-delay:${Math.random()*5}s`;s.appendChild(el);}})();
@@ -841,6 +843,8 @@ async function loadUser(){
     mems=(ms||[]).map(m=>m.content);
     const {data:hs}=await sb.from('messages').select('role,content').eq('user_id',user.id).order('created_at',{ascending:true}).limit(30);
     hist=hs||[];
+    await loadUserContext();
+    requestNotificationPermission();
     launch();
   }catch(e){go('setup');}
 }
@@ -891,8 +895,8 @@ function launch(isNew=false){
     addMsg('bot',welcomeMsg);
     setTimeout(()=>{ if(voiceEnabled) speak(welcomeMsg); },500);
   }
-  // Check moment of day
-  setTimeout(checkDayMoment,1500);
+  // Check moment of day (proactivo)
+  setTimeout(()=>checkDailyMoments(),1500);
 }
 
 // ===== MOMENTOS — AiYo toma iniciativa =====
@@ -1051,7 +1055,9 @@ async function send(){
   if(msgs===1) trackEvent('first_message');
   addMsg('user',text);
   const typ=addTyping();
-    const finCtx=await getFinancialContext();
+  // Modo carro: comandos especiales antes de llamar a Claude
+  if(carMode){ const handled=await handleCarModeCommand(text); if(handled){typ.remove();return;} }
+  const finCtx=await getFinancialContext();
 
   const sys=`Eres ${cfg.aiName}, el mejor amigo de ${cfg.name}.
 
@@ -1134,6 +1140,19 @@ Ejemplos:
 "pagué 150000 en comida del perro" → [GASTO:{"monto":150000,"descripcion":"Comida del perro","categoria":"masc_comida"}]
 Solo agrega el tag si el monto es claro. Va siempre al final, solo esa línea.
 Si el usuario quiere ver sus finanzas o presupuesto, incluye al final: [FINANZAS]
+
+MEMORIA INTELIGENTE — detecta y guarda automáticamente:
+Cuando el usuario mencione personas cercanas (mi novia X, mi jefe Y, mi mamá), rutinas habituales (siempre medito, normalmente voy al gym, todos los días), gustos específicos (me gusta la emisora X, prefiero rock, siempre escucho Y) o compromisos con fecha (hoy tengo reunión, mañana veo a María, el viernes a las 8pm), agrega al FINAL una sola línea:
+[CONTEXTO:{"category":"CATEGORIA","key":"CLAVE","value":"VALOR"}]
+Categorías: personas, rutina, gustos, compromisos, preferencias.
+Ejemplos: "mi novia se llama María" → [CONTEXTO:{"category":"personas","key":"novia","value":"María"}] | "siempre medito a las 7am" → [CONTEXTO:{"category":"rutina","key":"meditacion","value":"7am"}] | "me gusta La X" → [CONTEXTO:{"category":"gustos","key":"emisora","value":"La X"}]
+Solo si el dato es nuevo y específico. Un solo tag por respuesta. Va al final.
+
+Cuando el usuario pida "avísame en X minutos", "recuérdame en X" o similar, confirma con brevedad y agrega al FINAL:
+[TIMER:{"minutos":NUMERO,"mensaje":"descripción breve del recordatorio"}]
+
+${buildUserContextStr()}
+${carMode ? 'MODO CARRO ACTIVO: Responde en MÁXIMO 2 frases cortas. Sin listas. Directo al punto. Habla como si el usuario va conduciendo.' : ''}
 ${finCtx}`;
 
   try{
@@ -1166,7 +1185,9 @@ ${finCtx}`;
       const buscarMatch=reply.match(/\[BUSCAR:\s*(.+?)\]/);
       const gastoMatch=reply.match(/\[GASTO:\s*(\{[\s\S]*?\})\]/);
       const finanzasMatch=reply.match(/\[FINANZAS\]/i);
-      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch].forEach(m=>{
+      const contextoMatch=reply.match(/\[CONTEXTO:\s*(\{[\s\S]*?\})\]/);
+      const timerMatch=reply.match(/\[TIMER:\s*(\{[\s\S]*?\})\]/);
+      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch,contextoMatch,timerMatch].forEach(m=>{
         if(m) reply=reply.replace(m[0],'').trim();
       });
       // Extract memory
@@ -1174,7 +1195,10 @@ ${finCtx}`;
       if(mm){addMem(mm[1]);reply=reply.replace(mm[0],'').trim();}
       addMsg('bot',reply);
       if(voiceEnabled) speak(reply);
+      if(/ja+ja|je+je|ji+ji/i.test(reply)) animateLaugh();
       if(gastoMatch){ autoRegistrarGasto(gastoMatch[1]); }
+      if(contextoMatch){ autoSaveContexto(contextoMatch[1]); }
+      if(timerMatch){ autoStartTimer(timerMatch[1]); }
       if(mapsMatch) addMapsPrompt(mapsMatch[1]);
       if(uberMatch) addUberPrompt(uberMatch[1]);
       if(rappiMatch) addRappiPrompt(rappiMatch[1]);
@@ -1372,6 +1396,246 @@ function toggleVoice(){
 
 
 
+
+// ===== TAREA 1: MEMORIA EXPANDIDA — user_context =====
+async function loadUserContext(){
+  if(!user) return;
+  try{
+    const {data}=await sb.from('user_context').select('*').eq('user_id',user.id);
+    userCtx={};
+    (data||[]).forEach(row=>{
+      if(!userCtx[row.category]) userCtx[row.category]={};
+      userCtx[row.category][row.key]=row.value;
+    });
+  }catch(e){console.warn('loadUserContext:',e);}
+}
+
+async function saveUserContext(category,key,value){
+  if(!user) return;
+  userCtx[category]=userCtx[category]||{};
+  userCtx[category][key]=value;
+  try{
+    await sb.from('user_context').upsert(
+      {user_id:user.id,category,key,value,updated_at:new Date().toISOString()},
+      {onConflict:'user_id,category,key'}
+    );
+    const area=document.getElementById('chat');
+    const notif=document.createElement('div');
+    notif.style.cssText='text-align:center;font-size:0.75rem;color:var(--gold2);padding:3px 0;opacity:1;transition:opacity 1s';
+    notif.textContent=`💛 Apuntado: ${key} = ${value}`;
+    if(area){area.appendChild(notif);area.scrollTop=area.scrollHeight;}
+    setTimeout(()=>{notif.style.opacity='0';setTimeout(()=>notif.remove(),1000);},3000);
+  }catch(e){console.warn('saveUserContext:',e);}
+}
+
+async function autoSaveContexto(jsonStr){
+  try{
+    const c=JSON.parse(jsonStr.replace(/```json|```/g,'').trim());
+    if(c.category&&c.key&&c.value) await saveUserContext(c.category,c.key,c.value);
+  }catch(e){console.warn('autoContexto:',e);}
+}
+
+function buildUserContextStr(){
+  const parts=[];
+  if(userCtx.personas&&Object.keys(userCtx.personas).length)
+    parts.push('- Personas cercanas: '+Object.entries(userCtx.personas).map(([k,v])=>k+'='+v).join(', '));
+  if(userCtx.rutina&&Object.keys(userCtx.rutina).length)
+    parts.push('- Rutinas: '+Object.entries(userCtx.rutina).map(([k,v])=>k+'='+v).join(', '));
+  if(userCtx.gustos&&Object.keys(userCtx.gustos).length)
+    parts.push('- Gustos: '+Object.entries(userCtx.gustos).map(([k,v])=>k+'='+v).join(', '));
+  if(userCtx.compromisos&&Object.keys(userCtx.compromisos).length){
+    const today=new Date().toISOString().slice(0,10);
+    const todayC=Object.entries(userCtx.compromisos)
+      .filter(([k,v])=>v.includes(today)||k.includes(today))
+      .map(([k,v])=>k+': '+v);
+    if(todayC.length) parts.push('- Compromisos hoy: '+todayC.join(', '));
+  }
+  if(userCtx.preferencias&&Object.keys(userCtx.preferencias).length)
+    parts.push('- Preferencias: '+Object.entries(userCtx.preferencias).map(([k,v])=>k+'='+v).join(', '));
+  if(!parts.length) return '';
+  return `\nCONTEXTO PERSONAL DE ${cfg.name}:\n${parts.join('\n')}\n\nCon esta información sé proactivo: menciona compromisos próximos, sugiere cosas basadas en sus gustos, recuerda sus rutinas.`;
+}
+
+// ===== TAREA 2: MOMENTOS PROACTIVOS =====
+async function checkDailyMoments(){
+  if(!user||!hist.length){checkDayMoment();return;}
+  const now=new Date();
+  const h=now.getHours();
+  const sessionKey='aiyo_moment_'+now.toDateString()+'_'+Math.floor(h/3);
+  if(localStorage.getItem(sessionKey)) return;
+
+  if(!Object.keys(userCtx).length) await loadUserContext();
+
+  const today=now.toISOString().slice(0,10);
+  const compromisos=userCtx.compromisos?
+    Object.entries(userCtx.compromisos)
+      .filter(([k,v])=>v.includes(today)||k.includes(today))
+      .map(([k,v])=>v):[];
+  const rutinas=userCtx.rutina?Object.entries(userCtx.rutina).map(([k,v])=>k+'='+v):[];
+
+  if(!compromisos.length&&!rutinas.length){checkDayMoment();return;}
+
+  try{
+    const momento=h<9?'mañana':h<14?'mediodía':h<19?'tarde':'noche';
+    const prompt=`Saludo proactivo corto (1-2 frases) para ${cfg.name} de ${cfg.aiName}, ${momento} de hoy.\n`+
+      (compromisos.length?`Compromisos hoy: ${compromisos.slice(0,3).join(', ')}\n`:'')+
+      (rutinas.length?`Rutinas: ${rutinas.slice(0,2).join(', ')}\n`:'')+
+      'Cálido, natural, colombiano. Sin pregunta. Máximo 2 frases.';
+
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:100,
+        system:`Eres ${cfg.aiName}, amigo cercano de ${cfg.name}. Habla natural, colombiano, máximo 2 frases cortas.`,
+        messages:[{role:'user',content:prompt}]})
+    });
+    if(r.ok){
+      const d=await r.json();
+      const text=d.content[0]?.text?.trim();
+      if(text){
+        localStorage.setItem(sessionKey,'1');
+        const area=document.getElementById('chat');
+        const card=document.createElement('div');
+        card.className='moment-card';
+        card.innerHTML=`<div class="mc-being"></div><div class="mc-text">${text}</div><div class="mc-action">→</div>`;
+        card.onclick=()=>{card.style.opacity='0';setTimeout(()=>card.remove(),300);};
+        setTimeout(()=>{if(area)area.insertBefore(card,area.firstChild);},800);
+        return;
+      }
+    }
+  }catch(e){console.warn('checkDailyMoments API:',e);}
+  checkDayMoment();
+}
+
+// ===== TAREA 3: TEMPORIZADOR POR VOZ =====
+function autoStartTimer(jsonStr){
+  try{
+    const t=JSON.parse(jsonStr.replace(/```json|```/g,'').trim());
+    if(t.minutos>0) startVoiceTimer(t.minutos,t.mensaje||'');
+  }catch(e){console.warn('autoTimer:',e);}
+}
+
+function startVoiceTimer(minutos,mensaje){
+  const ms=minutos*60*1000;
+  const timerId=setTimeout(()=>{
+    const title=`⏰ ${cfg.aiName} — ${cfg.name}`;
+    const body=mensaje||`¡Ya pasaron ${minutos} minutos!`;
+    showNativeNotification(title,body);
+    addMsg('bot',`⏰ ¡${mensaje||'Se acabó el tiempo'}! Pasaron ${minutos} minuto${minutos===1?'':'s'}, ${cfg.name}.`);
+    if(voiceEnabled&&isPro) speak(`${mensaje||'Se acabó el tiempo'}. Pasaron ${minutos} minutos.`);
+  },ms);
+  activeTimers.push(timerId);
+}
+
+// ===== TAREA 4: MODO CONDUCCIÓN =====
+function toggleCarMode(){
+  carMode=!carMode;
+  const btn=document.getElementById('carModeBtn');
+  if(btn){
+    btn.style.background=carMode?'rgba(226,185,122,0.25)':'';
+    btn.style.borderColor=carMode?'var(--gold)':'';
+    btn.title=carMode?'Modo carro activo — toca para desactivar':'Modo carro';
+  }
+  if(carMode){
+    voiceEnabled=true;
+    const vb=document.getElementById('voiceToggle');
+    if(vb) vb.textContent='🔊';
+    const msg=`Modo carro activado. ¿Qué quieres escuchar?`;
+    addMsg('bot',msg);
+    if(isPro) speak(msg);
+    document.getElementById('hdrStatus').innerHTML='<span class="pulse" style="background:var(--gold)"></span><span style="color:var(--gold)">Modo carro 🚗</span>';
+  } else {
+    document.getElementById('hdrStatus').innerHTML='<span class="pulse"></span>Contigo siempre';
+    addMsg('bot','Modo carro desactivado. 👋');
+  }
+}
+
+async function handleCarModeCommand(text){
+  const t=text.toLowerCase();
+  if(t.includes('noticias')||t.includes('novedades')||t.includes('qué pasó')){
+    addMsg('bot','Buscando noticias...');
+    try{
+      const cats=userCtx.gustos?.noticias||'general';
+      const r=await fetch(`/api/news?categories=${encodeURIComponent(cats)}`);
+      if(r.ok){
+        const d=await r.json();
+        const arts=(d.articles||[]).slice(0,4);
+        if(arts.length){
+          const titulares=arts.map((a,i)=>`${i+1}. ${a.title}`).join('\n');
+          addMsg('bot',titulares);
+          if(isPro) speak(arts.map(a=>a.title).join('. '));
+        } else {
+          addMsg('bot','No encontré noticias ahora.');
+        }
+      }
+    }catch(e){addMsg('bot','No pude obtener noticias.');}
+    return true;
+  }
+  if(t.includes('música')||t.includes('musica')||t.includes('canción')){
+    const pref=userCtx.gustos?.playlist||userCtx.gustos?.musica||'mis canciones favoritas';
+    const msg=`Dale, abre Spotify con ${pref} 🎵`;
+    addMsg('bot',msg);
+    if(isPro) speak(msg);
+    addSpotifyPrompt(pref);
+    return true;
+  }
+  if(t.includes('emisora')||t.includes('radio')){
+    const emisora=userCtx.gustos?.emisora;
+    if(emisora){
+      const msg=`Abriendo ${emisora} 📻`;
+      addMsg('bot',msg);
+      if(isPro) speak(msg);
+      const area=document.getElementById('chat');
+      const d=document.createElement('div');
+      d.style.cssText='margin:8px 0 4px;';
+      d.innerHTML=`<a href="https://www.google.com/search?q=${encodeURIComponent(emisora+' online en vivo')}" target="_blank"
+        style="display:flex;align-items:center;gap:10px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;text-decoration:none;color:#fff;">
+        <span style="font-size:1.5rem;">📻</span>
+        <div style="flex:1;"><div style="font-size:0.82rem;color:#aaa;">Abrir emisora</div><div style="font-size:0.95rem;font-weight:600;">${emisora}</div></div>
+        <div style="font-size:0.8rem;color:#aaa;">Abrir →</div></a>`;
+      area.appendChild(d);area.scrollTop=area.scrollHeight;
+    } else {
+      addMsg('bot','No tengo guardada tu emisora aún. ¿Cuál escuchas?');
+      if(isPro) speak('No tengo guardada tu emisora. ¿Cuál es?');
+    }
+    return true;
+  }
+  if(t.includes('resumen del día')||t.includes('que tengo hoy')||t.includes('qué tengo hoy')||t.includes('mis compromisos')){
+    const today=new Date().toISOString().slice(0,10);
+    const compromisos=userCtx.compromisos?
+      Object.entries(userCtx.compromisos).filter(([k,v])=>v.includes(today)||k.includes(today)).map(([k,v])=>v):[];
+    if(compromisos.length){
+      const resumen=`Hoy tienes: ${compromisos.join(', ')}.`;
+      addMsg('bot',resumen);
+      if(isPro) speak(resumen);
+    } else {
+      const msg='No tengo compromisos guardados para hoy.';
+      addMsg('bot',msg);
+      if(isPro) speak(msg);
+    }
+    return true;
+  }
+  return false;
+}
+
+// ===== TAREA 6: NOTIFICACIONES NATIVAS =====
+async function requestNotificationPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='default'){
+    try{
+      const perm=await Notification.requestPermission();
+      if(perm==='granted'&&user){
+        sb.from('profiles').update({notification_enabled:true}).eq('id',user.id).then();
+      }
+    }catch(e){console.warn('notification perm:',e);}
+  }
+}
+
+function showNativeNotification(title,body){
+  if('Notification' in window&&Notification.permission==='granted'){
+    try{ new Notification(title,{body,icon:'/favicon.ico'}); }catch(e){}
+  }
+}
 
 // ===== SPLASH PARTICLES =====
 (()=>{
