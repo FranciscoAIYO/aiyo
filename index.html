@@ -798,7 +798,8 @@ const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persis
 let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'nova'},
     hist=[],mems=[],mood='',user=null,isPro=false,
     msgs=0,rec=null,lstn=false,authTab='login',
-    carMode=false,userCtx={},activeTimers=[];
+    carMode=false,userCtx={},activeTimers=[],
+    userLocation=null,userCity=null,locationDenied=false;
 
 // ===== STARS =====
 (()=>{const s=document.getElementById('stars');for(let i=0;i<50;i++){const el=document.createElement('div');el.className='s';const sz=Math.random()*1.5+0.5;el.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${3+Math.random()*5}s;--b:${0.2+Math.random()*0.4};animation-delay:${Math.random()*5}s`;s.appendChild(el);}})();
@@ -867,6 +868,7 @@ async function loadUser(){
     hist=hs||[];
     await loadUserContext();
     requestNotificationPermission();
+    requestLocation();
     launch();
   }catch(e){go('setup');}
 }
@@ -1175,6 +1177,7 @@ Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade 
 ${cfg.bio?`Perfil de ${cfg.name}: ${cfg.bio}`:''}
 ${mems.length?`Recuerdas de ${cfg.name}: ${mems.slice(0,10).join(', ').slice(0,500)}`:''}
 ${mood?`Estado actual: ${mood}`:''}
+${userCity?`Ubicación actual de ${cfg.name}: ${userCity}. Cuando pregunte por lugares, restaurantes, cosas "cerca" o "aquí", usa esta ubicación como referencia.`:''}
 ${(()=>{const n=new Date();const h=n.getHours();const d=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][n.getDay()];const t=h<6?'madrugada':h<12?'manana':h<14?'mediodia':h<19?'tarde':'noche';const w=n.getDay()===0||n.getDay()===6;const mo=n.getDay()===1;const fr=n.getDay()===5;const mins=String(n.getMinutes()).padStart(2,'0');
   const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const dateStr=n.getDate()+' de '+months[n.getMonth()]+' de '+n.getFullYear();
@@ -3002,10 +3005,17 @@ function addBuscarPrompt(query){
 function addMapsPrompt(place){
   const area=document.getElementById('chat');
   const enc=encodeURIComponent(place);
+  const loc=userLocation;
+  const wazeHref=loc
+    ?`https://waze.com/ul?ll=${loc.lat},${loc.lng}&navigate=yes&q=${enc}`
+    :`https://waze.com/ul?q=${enc}&navigate=yes`;
+  const mapsHref=loc
+    ?`https://www.google.com/maps/dir/${loc.lat},${loc.lng}/${enc}`
+    :`https://www.google.com/maps/search/?api=1&query=${enc}`;
   const d=document.createElement('div');
   d.style.cssText='display:flex;gap:8px;margin:8px 0 4px;';
   d.innerHTML=`
-    <a href="https://waze.com/ul?q=${enc}&navigate=yes" target="_blank"
+    <a href="${wazeHref}" target="_blank"
       style="flex:1;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
       onmouseover="this.style.borderColor='#33ccff'" onmouseout="this.style.borderColor='#3a3a6a'">
       <span style="font-size:1.3rem;">🗺️</span>
@@ -3014,7 +3024,7 @@ function addMapsPrompt(place){
         <div style="font-size:0.88rem;font-weight:500;">${place}</div>
       </div>
     </a>
-    <a href="https://www.google.com/maps/search/?api=1&query=${enc}" target="_blank"
+    <a href="${mapsHref}" target="_blank"
       style="flex:1;display:flex;align-items:center;gap:8px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:12px 14px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
       onmouseover="this.style.borderColor='#34a853'" onmouseout="this.style.borderColor='#3a3a6a'">
       <span style="font-size:1.3rem;">📍</span>
@@ -3029,6 +3039,60 @@ function addMapsPrompt(place){
 }
 
 
+
+// ===== GEOLOCALIZACIÓN =====
+function requestLocation(){
+  if(!('geolocation' in navigator)) return;
+  if(locationDenied) return;
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      userLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=json`,
+          {headers:{'Accept-Language':'es'}});
+        if(r.ok){
+          const d=await r.json();
+          const addr=d.address||{};
+          const parts=[addr.neighbourhood||addr.suburb||addr.quarter,addr.city||addr.town||addr.village||addr.county].filter(Boolean);
+          userCity=parts.join(', ')||d.display_name?.split(',')[0]||null;
+        }
+      }catch(e){console.warn('reverse geocode:',e);}
+    },
+    err=>{
+      if(err.code===1) locationDenied=true;
+    },
+    {timeout:8000,maximumAge:300000}
+  );
+}
+
+async function requestLocationAndRespond(){
+  return new Promise(resolve=>{
+    if(!('geolocation' in navigator)){addMsg('bot','Tu dispositivo no tiene GPS 😅');resolve();return;}
+    navigator.geolocation.getCurrentPosition(
+      async pos=>{
+        userLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
+        try{
+          const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=json`,
+            {headers:{'Accept-Language':'es'}});
+          if(r.ok){
+            const d=await r.json();
+            const addr=d.address||{};
+            const parts=[addr.neighbourhood||addr.suburb||addr.quarter,addr.city||addr.town||addr.village||addr.county].filter(Boolean);
+            userCity=parts.join(', ')||d.display_name?.split(',')[0]||null;
+          }
+        }catch(e){}
+        addMsg('bot',userCity?`Estás en ${userCity} 📍`:'Ubicación obtenida — puedo abrirte rutas 📍');
+        resolve();
+      },
+      err=>{
+        if(err.code===1) locationDenied=true;
+        addMsg('bot','No tengo tu ubicación pero igual puedo llevarte a donde necesites 😊');
+        resolve();
+      },
+      {timeout:8000}
+    );
+  });
+}
 
 // ===== EXTERNAL INTENT DETECTION =====
 function isMobile(){
@@ -3060,6 +3124,14 @@ function findContactNumber(name){
 function detectExternalIntent(text){
   const t=text.trim();
   let m;
+  // UBICACIÓN — ¿dónde estoy?
+  if(/(?:dónde|donde)\s+(?:estoy|me\s+encuentro|estamos)/i.test(t)||
+     /(?:cuál\s+es|cual\s+es)\s+mi\s+ubicaci[oó]n/i.test(t))
+    return {type:'location'};
+  // CERCA — búsqueda por proximidad
+  m=t.match(/(.+?)\s+cerca(?:\s+de\s+(?:aquí|aca|mí|mi\s+ubicaci[oó]n))?/i)||
+    t.match(/(?:qué|que)\s+hay\s+cerca/i);
+  if(m&&userLocation) return {type:'nearby',query:(m[1]||'lugares').replace(/[?!.]+$/,'').trim()};
   // MAPS
   m=t.match(/(?:llévame|llevame|ruta|navégame|navegame)\s+a\s+(.+)/i)||
     t.match(/(?:cómo|como)\s+(?:llego|voy|vamos|llegar)\s+a\s+(.+)/i)||
@@ -3082,11 +3154,44 @@ async function handleExternalIntent(intent){
   const typ=addTyping(20);
   await new Promise(r=>setTimeout(r,500));
   typ.remove();
-  if(intent.type==='maps'){
+  if(intent.type==='location'){
+    if(userCity){
+      addMsg('bot',`Estás en ${userCity} 📍`);
+    } else if(locationDenied){
+      addMsg('bot',`No tengo tu ubicación pero igual puedo llevarte a donde necesites 😊`);
+    } else {
+      addMsg('bot',`Déjame buscarte... 📍`);
+      await requestLocationAndRespond();
+    }
+  } else if(intent.type==='nearby'){
+    const q=intent.query;
+    const loc=userLocation;
+    addMsg('bot',`Te muestro ${q} cerca de ti 📍`);
+    const enc=encodeURIComponent(q);
+    const mapsUrl=`https://www.google.com/maps/search/${enc}/@${loc.lat},${loc.lng},14z`;
+    const d=document.createElement('div');
+    d.style.cssText='margin:8px 0 4px;';
+    d.innerHTML=`<a href="${mapsUrl}" target="_blank"
+      style="display:flex;align-items:center;gap:10px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='#34a853'" onmouseout="this.style.borderColor='#3a3a6a'">
+      <span style="font-size:1.5rem;">📍</span>
+      <div style="flex:1;"><div style="font-size:0.82rem;color:#aaa;">Buscar cerca de ti</div><div style="font-size:0.95rem;font-weight:600;">${q}</div></div>
+      <div style="font-size:0.8rem;color:#aaa;">Ver en Maps →</div>
+    </a>`;
+    document.getElementById('chat').appendChild(d);
+    document.getElementById('chat').scrollTop=99999;
+    setTimeout(()=>window.open(mapsUrl,'_blank'),300);
+  } else if(intent.type==='maps'){
     const place=intent.query;
     addMsg('bot',`Te abro la ruta a ${place} 🗺️`);
     addMapsPrompt(place);
-    if(isMobile()) setTimeout(()=>window.open(`waze://ul?q=${encodeURIComponent(place)}&navigate=yes`,'_blank'),300);
+    if(isMobile()){
+      const loc=userLocation;
+      const wazeUrl=loc
+        ?`waze://ul?ll=${loc.lat},${loc.lng}&navigate=yes&q=${encodeURIComponent(place)}`
+        :`waze://ul?q=${encodeURIComponent(place)}&navigate=yes`;
+      setTimeout(()=>window.open(wazeUrl,'_blank'),300);
+    }
   } else if(intent.type==='youtube'){
     const query=intent.query;
     addMsg('bot',`Te busco ${query} en YouTube 🎵`);
