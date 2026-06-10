@@ -30,21 +30,35 @@ export default async function handler(req, res) {
   const category = CAT_MAP[rawCat] || 'general';
 
   try {
-    // Primero intentar Colombia en español
-    const url = `https://newsapi.org/v2/top-headlines?country=co&pageSize=5&apiKey=${NEWS_KEY}`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'AiYo/1.0' } });
-    const d = await r.json();
-
-    if (r.ok && d.status === 'ok' && d.articles?.length) {
-      return res.json({ articles: d.articles.slice(0, 5) });
+    // Intento 1: Colombia
+    const url1 = `https://newsapi.org/v2/top-headlines?country=co&pageSize=5&apiKey=${NEWS_KEY}`;
+    const r1 = await fetch(url1);
+    if (r1.ok) {
+      const d1 = await r1.json();
+      if (d1.status === 'ok' && d1.articles?.length) {
+        return res.json({ articles: d1.articles.slice(0, 5) });
+      }
     }
 
-    // Fallback: noticias en español por categoría
+    // Intento 2: español por categoría
     const url2 = `https://newsapi.org/v2/top-headlines?language=es&category=${category}&pageSize=5&apiKey=${NEWS_KEY}`;
-    const r2 = await fetch(url2, { headers: { 'User-Agent': 'AiYo/1.0' } });
-    const d2 = await r2.json();
+    const r2 = await fetch(url2);
+    if (r2.ok) {
+      const d2 = await r2.json();
+      if (d2.status === 'ok' && d2.articles?.length) {
+        return res.json({ articles: d2.articles.slice(0, 5) });
+      }
+    }
 
-    return res.json({ articles: (d2.articles || []).slice(0, 5) });
+    // Intento 3: español sin categoría
+    const url3 = `https://newsapi.org/v2/top-headlines?language=es&pageSize=5&apiKey=${NEWS_KEY}`;
+    const r3 = await fetch(url3);
+    if (r3.ok) {
+      const d3 = await r3.json();
+      return res.json({ articles: (d3.articles || []).slice(0, 5) });
+    }
+
+    return res.json({ articles: [] });
   } catch (e) {
     console.error('news proxy error:', e);
     return res.status(500).json({ error: e.message, articles: [] });

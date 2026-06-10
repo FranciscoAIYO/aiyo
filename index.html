@@ -1009,9 +1009,20 @@ function checkDayMoment(){
 function addMsg(role,text){
   const area=document.getElementById('chat');
   const d=document.createElement('div');d.className='msg'+(role==='user'?' u':'');
+  let display=text;
+  if(role==='bot'){
+    display=display
+      .replace(/\[CONTEXTO:\s*\{[\s\S]*?\}\s*\]/g,'')
+      .replace(/\[GASTO:\s*\{[\s\S]*?\}\s*\]/g,'')
+      .replace(/\[TIMER:\s*\{[\s\S]*?\}\s*\]/g,'')
+      .replace(/\[RESERVA:\s*\{[\s\S]*?\}\s*\]/g,'')
+      .replace(/\[MEMORIA:[^\]]+\]/g,'')
+      .replace(/\[(MAPS|UBER|RAPPI|COMPRAR|YOUTUBE|CLIMA|BUSCAR|SPOTIFY|FINANZAS|WHATSAPP):[^\]]*\]/g,'')
+      .replace(/\s{2,}/g,' ').trim();
+  }
   d.innerHTML=role==='bot'
-    ?`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div class="bbl">${text.replace(/\n/g,'<br>')}</div>`
-    :`<div class="bbl">${text.replace(/\n/g,'<br>')}</div>`;
+    ?`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div class="bbl">${display.replace(/\n/g,'<br>')}</div>`
+    :`<div class="bbl">${display.replace(/\n/g,'<br>')}</div>`;
   area.appendChild(d);area.scrollTop=area.scrollHeight;
   if(user){
     const r=role==='bot'?'assistant':'user';
@@ -1091,6 +1102,9 @@ async function send(){
   msgs++;inp.value='';inp.style.height='';
   if(msgs===1) trackEvent('first_message');
   addMsg('user',text);
+  // Detección de intención externa — antes de llamar a Claude
+  const extIntent=detectExternalIntent(text);
+  if(extIntent){ await handleExternalIntent(extIntent); return; }
   const typ=addTyping(text.length);
   // Modo carro: comandos especiales antes de llamar a Claude
   if(carMode){ const handled=await handleCarModeCommand(text); if(handled){typ.remove();return;} }
@@ -1131,6 +1145,7 @@ CÓDIGOS DE ACCIÓN — la interfaz donde vives tiene botones especiales que se 
 [CLIMA: ciudad] → muestra el clima en tiempo real
 [BUSCAR: término] → muestra botón de búsqueda
 [MAPS: lugar] → muestra botones de navegación
+[WHATSAPP: nombre o número] → abre WhatsApp con ese contacto
 [FINANZAS] → abre el panel de finanzas con resumen del mes
 [RESERVA: {"restaurante":"Nombre","personas":N,"fecha":"fecha","hora":"hora","telefono":"número si lo sabes o vacío"}] → muestra card de reserva con botón WhatsApp directo
 
@@ -1146,6 +1161,8 @@ Si el usuario quiere pedir comida a domicilio, incluye al final: [RAPPI: nombre 
 Si el usuario quiere buscar un producto para comprar, comparar precios o encontrar algo en tiendas, incluye al final: [COMPRAR: nombre del producto]
 
 Si el usuario quiere ver un video, tutorial o buscar algo en YouTube, incluye al final: [YOUTUBE: búsqueda]
+
+Si el usuario quiere enviar un WhatsApp, escribirle o mandarle un mensaje a alguien, incluye al final: [WHATSAPP: nombre del contacto o número de teléfono con código de país]
 
 Si el usuario pregunta por el clima, temperatura, lluvia o pronóstico del tiempo, incluye al final: [CLIMA: ciudad]
 
@@ -1229,12 +1246,13 @@ ${finCtx}`;
       const ytMatch=reply.match(/\[YOUTUBE:\s*(.+?)\]/);
       const climaMatch=reply.match(/\[CLIMA:\s*(.+?)\]/);
       const buscarMatch=reply.match(/\[BUSCAR:\s*(.+?)\]/);
+      const waMatch=reply.match(/\[WHATSAPP:\s*(.+?)\]/);
       const gastoMatch=reply.match(/\[GASTO:\s*(\{[\s\S]*?\})\s*\]/);
       const finanzasMatch=reply.match(/\[FINANZAS\]/i);
       const contextoMatch=reply.match(/\[CONTEXTO:\s*(\{[\s\S]*?\})\s*\]/);
       const timerMatch=reply.match(/\[TIMER:\s*(\{[\s\S]*?\})\s*\]/);
       const reservaMatch=reply.match(/\[RESERVA:\s*(\{[\s\S]*?\})\s*\]/);
-      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,gastoMatch,finanzasMatch,contextoMatch,timerMatch,reservaMatch].forEach(m=>{
+      [mapsMatch,uberMatch,rappiMatch,buyMatch,ytMatch,climaMatch,buscarMatch,waMatch,gastoMatch,finanzasMatch,contextoMatch,timerMatch,reservaMatch].forEach(m=>{
         if(m) reply=reply.replace(m[0],'').trim();
       });
       // Limpieza global por si quedan tags invisibles (espacios extra, múltiples ocurrencias)
@@ -1256,6 +1274,7 @@ ${finCtx}`;
       if(ytMatch) addYTPrompt(ytMatch[1]);
       if(climaMatch) addClimaPrompt(climaMatch[1]);
       if(buscarMatch) addBuscarPrompt(buscarMatch[1]);
+      if(waMatch) handleWAAction(waMatch[1]);
       if(finanzasMatch) setTimeout(()=>openFinance(),600);
     }
   }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
@@ -1340,6 +1359,7 @@ let referralCode='', pendingRefCode='';
 async function speak(text){
   if(!voiceEnabled) return;
   if(!isPro){ showVoiceProModal(); return; }
+  if(lstn) stopMic();
   const VOICE_ID=cfg.voiceId||'9ZVfdvBemUaGEWZgCiv0';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
@@ -1725,8 +1745,10 @@ async function handleCarModeCommand(text){
           addMsg('bot',titulares);
           if(isPro) speak(arts.map(a=>a.title).join('. '));
         } else {
-          addMsg('bot','No encontré noticias ahora.');
+          addMsg('bot','No encontré noticias en este momento.');
         }
+      } else {
+        addMsg('bot','No pude conectar con las noticias. Intenta de nuevo.');
       }
     }catch(e){addMsg('bot','No pude obtener noticias.');}
     return true;
@@ -3007,6 +3029,107 @@ function addMapsPrompt(place){
 }
 
 
+
+// ===== EXTERNAL INTENT DETECTION =====
+function isMobile(){
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+}
+
+function findContactNumber(name){
+  const nl=name.toLowerCase();
+  const personas=userCtx.personas||{};
+  for(const [key,value] of Object.entries(personas)){
+    if(key.toLowerCase().includes(nl)||nl.includes(key.toLowerCase())){
+      const pm=value.match(/\+?[\d]{7,}/);
+      if(pm) return pm[0].replace(/[^\d+]/g,'');
+    }
+    if(value.toLowerCase().includes(nl)){
+      const pm=key.match(/\+?[\d]{7,}/);
+      if(pm) return pm[0].replace(/[^\d+]/g,'');
+    }
+  }
+  for(const mem of mems){
+    if(mem.toLowerCase().includes(nl)){
+      const pm=mem.match(/\+?[\d]{7,}/);
+      if(pm) return pm[0].replace(/[^\d+]/g,'');
+    }
+  }
+  return null;
+}
+
+function detectExternalIntent(text){
+  const t=text.trim();
+  let m;
+  // MAPS
+  m=t.match(/(?:llévame|llevame|ruta|navégame|navegame)\s+a\s+(.+)/i)||
+    t.match(/(?:cómo|como)\s+(?:llego|voy|vamos|llegar)\s+a\s+(.+)/i)||
+    t.match(/(?:abre|abrir)\s+(?:waze|google\s+maps|maps)(?:\s+(?:a|para|hacia))?\s+(.+)/i);
+  if(m) return {type:'maps',query:m[1].replace(/[?!.]+$/,'').trim()};
+  // YOUTUBE
+  m=t.match(/^pon(?:me)?\s+(?:música\s+de\s+|musica\s+de\s+|canciones?\s+de\s+|algo\s+de\s+)?(.+)/i)||
+    t.match(/busca(?:r)?\s+en\s+(?:youtube|you\s*tube)\s+(.+)/i)||
+    t.match(/quiero\s+(?:escuchar|ver)\s+(.+)/i);
+  if(m) return {type:'youtube',query:m[1].replace(/[?!.]+$/,'').trim()};
+  // WHATSAPP
+  m=t.match(/(?:escríbele|escribele|mándale|mandale|escribe)\s+a\s+(.+)/i)||
+    t.match(/(?:manda|envía|envia|envíale|enviale)\s+(?:un\s+)?(?:mensaje|whatsapp|wasap)\s+a\s+(.+)/i)||
+    t.match(/(?:abre|abrir)\s+whatsapp\s+(?:con|de|a|para)\s+(.+)/i);
+  if(m) return {type:'whatsapp',contact:m[1].replace(/[?!.]+$/,'').trim()};
+  return null;
+}
+
+async function handleExternalIntent(intent){
+  const typ=addTyping(20);
+  await new Promise(r=>setTimeout(r,500));
+  typ.remove();
+  if(intent.type==='maps'){
+    const place=intent.query;
+    addMsg('bot',`Te abro la ruta a ${place} 🗺️`);
+    addMapsPrompt(place);
+    if(isMobile()) setTimeout(()=>window.open(`waze://ul?q=${encodeURIComponent(place)}&navigate=yes`,'_blank'),300);
+  } else if(intent.type==='youtube'){
+    const query=intent.query;
+    addMsg('bot',`Te busco ${query} en YouTube 🎵`);
+    addYTPrompt(query);
+    setTimeout(()=>window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,'_blank'),300);
+  } else if(intent.type==='whatsapp'){
+    const contact=intent.contact;
+    const number=findContactNumber(contact);
+    if(number){
+      addMsg('bot',`Te abro WhatsApp con ${contact} 📱`);
+      setTimeout(()=>window.open(`https://wa.me/${number}`,'_blank'),300);
+    } else {
+      addMsg('bot',`Te abro WhatsApp para escribirle a ${contact} 📱`);
+      addWAContactPrompt(contact);
+    }
+  }
+}
+
+function addWAContactPrompt(contact){
+  const area=document.getElementById('chat');
+  const d=document.createElement('div');
+  d.style.cssText='margin:8px 0 4px;';
+  d.innerHTML=`<a href="https://wa.me/" target="_blank"
+    style="display:flex;align-items:center;gap:10px;background:#1a1a35;border:1px solid #3a3a6a;border-radius:14px;padding:14px 16px;text-decoration:none;color:#fff;transition:border-color 0.2s;"
+    onmouseover="this.style.borderColor='#25D366'" onmouseout="this.style.borderColor='#3a3a6a'">
+    <span style="font-size:1.5rem;">💬</span>
+    <div style="flex:1;"><div style="font-size:0.82rem;color:#aaa;">Abrir WhatsApp</div><div style="font-size:0.95rem;font-weight:600;">${contact}</div></div>
+    <div style="font-size:0.8rem;color:#aaa;">Abrir →</div>
+  </a>`;
+  area.appendChild(d);area.scrollTop=area.scrollHeight;
+}
+
+function handleWAAction(contactOrNumber){
+  const phoneRe=/^\+?[\d]{7,}$/;
+  if(phoneRe.test(contactOrNumber.replace(/[\s\-()]/g,''))){
+    const num=contactOrNumber.replace(/[\s\-()]/g,'');
+    setTimeout(()=>window.open(`https://wa.me/${num}`,'_blank'),300);
+  } else {
+    const number=findContactNumber(contactOrNumber);
+    if(number) setTimeout(()=>window.open(`https://wa.me/${number}`,'_blank'),300);
+    else addWAContactPrompt(contactOrNumber);
+  }
+}
 
 // ===== VOICE PICKER =====
 function openVoicePicker(){
