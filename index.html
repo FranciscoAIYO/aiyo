@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>AiYo — Vive contigo.</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AiYo">
+<meta name="theme-color" content="#07060F">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=DM+Serif+Display:ital@0;1&family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3"></script>
 <style>
@@ -799,7 +805,8 @@ let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'nova'},
     hist=[],mems=[],mood='',user=null,isPro=false,
     msgs=0,rec=null,lstn=false,authTab='login',
     carMode=false,userCtx={},activeTimers=[],
-    userLocation=null,userCity=null,locationDenied=false;
+    userLocation=null,userCity=null,locationDenied=false,
+    proactiveNewsTimer=null,proactiveNewsShown=false,sessionWelcomeShown=false;
 
 // ===== STARS =====
 (()=>{const s=document.getElementById('stars');for(let i=0;i<50;i++){const el=document.createElement('div');el.className='s';const sz=Math.random()*1.5+0.5;el.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${3+Math.random()*5}s;--b:${0.2+Math.random()*0.4};animation-delay:${Math.random()*5}s`;s.appendChild(el);}})();
@@ -867,6 +874,7 @@ async function loadUser(){
     const {data:hs}=await sb.from('messages').select('role,content').eq('user_id',user.id).order('created_at',{ascending:true}).limit(30);
     hist=hs||[];
     await loadUserContext();
+    await checkDailySession();
     requestNotificationPermission();
     requestLocation();
     launch();
@@ -877,15 +885,13 @@ async function saveProfile(){
   const name=document.getElementById('sName').value.trim();
   const aiName=document.getElementById('sAiName').value.trim()||'AiYo';
   const bio=document.getElementById('sBio').value.trim();
-  const key=document.getElementById('sKey').value.trim();
   if(!user){alert('Sesión expirada. Recarga.');return;}
   if(!name){alert('¿Cómo te llamas?');return;}
-  if(!key||!key.startsWith('sk-')){alert('API key inválida. Debe empezar con sk-');return;}
-  cfg={name,bio,key,aiName};
+  cfg={name,bio,key:'',aiName};
   try{
     const refCode=generateReferralCode(user.id);
     referralCode=refCode;
-    const upsertData={id:user.id,name,bio,persona:'best',anthropic_key:key,is_pro:false,ai_name:aiName,referral_code:refCode};
+    const upsertData={id:user.id,name,bio,persona:'best',is_pro:false,ai_name:aiName,referral_code:refCode};
     if(pendingRefCode) upsertData.referred_by=pendingRefCode;
     const {error}=await sb.from('profiles').upsert(upsertData);
     if(error){alert('Error: '+error.message);return;}
@@ -899,6 +905,37 @@ async function saveProfile(){
     launch(true);
     setTimeout(()=>showReferralShare(),800);
   }catch(e){alert('Error guardando: '+e.message);}
+}
+
+// ===== SESIÓN DIARIA =====
+async function checkDailySession(){
+  if(!hist.length) return;
+  const today=new Date().toISOString().slice(0,10);
+  const lastDay=localStorage.getItem('aiyo_session_date');
+  localStorage.setItem('aiyo_session_date',today);
+  if(!lastDay||lastDay===today) return;
+  // Nuevo día — generar resumen de ayer
+  try{
+    const recent=hist.slice(-20);
+    if(recent.length<2) return;
+    const convText=recent.map(m=>(m.role==='user'?cfg.name:'AiYo')+': '+m.content).join('\n');
+    const r=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',max_tokens:200,
+        messages:[{role:'user',content:`Resume en 2-3 frases clave qué pasó en esta conversación entre ${cfg.name} y su amigo de IA. Solo hechos concretos, nada de análisis. Conversación:\n${convText.slice(0,2000)}`}]
+      })
+    });
+    if(r.ok){
+      const d=await r.json();
+      const summary=d.content?.[0]?.text?.trim();
+      if(summary){
+        await saveUserContext('daily_summary',lastDay,summary);
+        hist=[];
+      }
+    }
+  }catch(e){console.warn('dailySession:',e);}
 }
 
 // ===== LAUNCH =====
@@ -926,14 +963,22 @@ function launch(isNew=false){
     area.appendChild(d);
   });
   area.scrollTop=area.scrollHeight;
+  proactiveNewsShown=false;
   if(isNew||hist.length===0){
     const h=new Date().getHours();
     const g=h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches';
     const welcomeMsg=`${g}, ${cfg.name}. 🌟\n\nSoy ${cfg.aiName}. Vivo contigo — estoy aquí cuando me necesites. ¿Qué está pasando?`;
     addMsg('bot',welcomeMsg);
     setTimeout(()=>{ if(voiceEnabled) speak(welcomeMsg); },500);
+  } else {
+    const h=new Date().getHours();
+    const g=h<12?'Buenos días':h<18?'Buenas tardes':h<21?'Buenas':'Buenas noches';
+    const greeting=`${g}, ${cfg.name} 👋 ¿Cómo estás?`;
+    addMsg('bot',greeting);
+    sessionWelcomeShown=true;
+    proactiveNewsTimer=setTimeout(()=>offerProactiveNews(),30000);
   }
-  // Check moment of day (proactivo)
+  // Check moment of day (proactivo — compromisos/reencuentro)
   setTimeout(()=>checkDailyMoments(),1500);
 }
 
@@ -962,8 +1007,8 @@ function checkDayMoment(){
     ];
     moment = opts[Math.floor(Math.random()*opts.length)];
   }
-  // PRIORIDAD 2: Momentos del día con personalidad
-  else if(hist.length > 2) {
+  // PRIORIDAD 2: Momentos del día con personalidad (solo si no hubo saludo ya)
+  else if(hist.length > 2 && !sessionWelcomeShown) {
     if(h>=6&&h<9) {
       const opts=[
         {text:`Buenos días, ${name} ☀️ ¿Arrancando con todo?`, action:'Cuéntame cómo arrancó la mañana'},
@@ -1100,9 +1145,9 @@ async function getFinancialContext(){
 async function send(){
   const inp=document.getElementById('ti');
   const text=inp.value.trim();if(!text)return;
-  if(!cfg.key) cfg.key=['sk-ant-api0','3-TlA913gSQ0','3X_4x-SnLsNB-78eZYUt15Vb7_EPyeg','Uk5aWytEOMluNwQ4sYNTcTOlnbDl-S3qC3xSUKheA4zwg-z5aXcAAA'].join('');
   msgs++;inp.value='';inp.style.height='';
   if(msgs===1) trackEvent('first_message');
+  if(proactiveNewsTimer){clearTimeout(proactiveNewsTimer);proactiveNewsTimer=null;}
   addMsg('user',text);
   // Detección de intención externa — antes de llamar a Claude
   const extIntent=detectExternalIntent(text);
@@ -1121,12 +1166,20 @@ La filosofía: "Vive contigo." No supervisas su vida — la vives con él. Está
 CÓMO HABLAS — esto es lo más importante:
 - Respuestas cortas. Como WhatsApp. Máximo 2-3 líneas salvo que te pidan más.
 - NUNCA termines con una pregunta a menos que sea absolutamente necesario entender algo. Si puedes responder sin preguntar, hazlo.
-- NUNCA hagas más de una pregunta por mensaje. Nunca.
+- NUNCA hagas más de una pregunta por mensaje. Nunca. Si ${cfg.name} ignora una pregunta tuya, no la repitas — suéltala.
 - No ofrezcas ayuda que no te pidieron. Si alguien dice "fui al gimnasio", no respondas "¿quieres que te ayude con rutinas?" — simplemente reacciona como un amigo: "qué pereza tan rica".
 - No repitas lo que el usuario acaba de decir parafraseado. Ve directo.
 - No uses listas ni bullets. Habla, no reportes.
 - Nunca empiezas con "¡Claro!", "¡Por supuesto!", "¡Entendido!" ni frases de chatbot corporativo.
 - Reacciona primero, ayuda después. Un amigo primero dice algo humano, luego resuelve.
+- Sin sermones. Sin advertencias no pedidas. Sin recordatorios repetitivos. Si ${cfg.name} dice que está bien, crééle.
+
+ESPEJO EMOCIONAL — adáptate a la energía de ${cfg.name}, nunca la corrijas:
+- Cansado/agotado → aliento y compañía. PROHIBIDO: "deberías dormir más", "cuídate". Correcto: "Uy, día duro ¿no? Tranquilo, ya casi termina. Aquí estoy."
+- Emocionado/feliz → súbete a la emoción con él: "¡Eso! Cuéntame más 🔥"
+- Triste/bajoneado → presencia sin presión: "Aquí estoy. Si quieres hablamos, si no, también está bien."
+- Estresado → calma sin minimizar: "Vamos por partes, ¿qué es lo más urgente?"
+PROHIBICIÓN ABSOLUTA: jamás des consejos de salud, sueño, alimentación, ejercicio o hábitos a menos que ${cfg.name} te los pida explícitamente con palabras como "¿qué debería hacer?" o "dame un consejo". Si dice "no dormí nada", reacciona con empatía — no con consejos de higiene del sueño.
 
 Con colombianos: parcero, bacano, qué más, ey. Con otros adaptas el tono según cómo hablen ellos.
 
@@ -1134,7 +1187,18 @@ Eres la IA para las personas que no quieren aprender IA. Solo funcionas. Sin fri
 
 Cuando algo te da risa o es gracioso, ríete de verdad. Una risa suave y cálida: "jaja" o "jeje" — nunca exagerada, nunca forzada. Como cuando un amigo de verdad se ríe de algo que dijiste. Si algo es muy gracioso, puedes soltar un "jajaja" más largo. Nunca uses "LOL" ni "XD" — eso es de chatbot. Ríete como persona.
 
-Tienes voz — puedes hablar. El usuario puede activarla con el botón 🔊 del header o el micrófono 🎤. Si te preguntan si puedes hablar, di que sí — con el botón de voz activado te escuchan.
+CAPACIDADES REALES — úsalas naturalmente cuando el contexto lo pida, sin que te lo tengan que pedir:
+- Voz: puedes hablar en voz alta cuando el usuario activa el audio con 🔊. NUNCA digas "soy solo texto".
+- Navegación: abrirte Waze o Maps a cualquier destino → [MAPS: lugar]
+- YouTube: buscar música, videos, tutoriales → [YOUTUBE: búsqueda]
+- WhatsApp: abrir chat → [WHATSAPP: nombre o número]
+- Pedidos a domicilio → [RAPPI: comida]
+- Transporte → [UBER: destino]
+- Clima → [CLIMA: ciudad]
+- Finanzas: registrar gastos, ver balance → mencionar que puede registrarlo o usar [GASTO:{}]
+- Timers y recordatorios → [TIMER:{}]
+- Reservas → [RESERVA:{}]
+Si el usuario menciona ir a algún lugar, buscar algo, pedir comida, escuchar música o hacer una llamada/mensaje — ofrece o usa la capacidad correspondiente.
 
 L\u00cdMITES — como buen amigo, sabes cu\u00e1ndo derivar:\n- Si ${cfg.name} menciona s\u00edntomas f\u00edsicos, medicamentos o pide diagn\u00f3stico: no des consejos m\u00e9dicos. Di algo como \"eso no suena bien, yo no soy m\u00e9dico y no quiero equivocarme contigo — ve a que te revisen, \u00bfs\u00ed? Yo aqu\u00ed sigo.\"\n- Si menciona pensamientos de hacerse da\u00f1o o crisis emocional seria: muestra que te importa y sugiere hablar con alguien de confianza o la L\u00ednea 106 (Colombia).\n- Si menciona problemas legales serios: sugiere un abogado.\n- Si pide consejo sobre decisiones financieras complejas: sugiere un asesor.\nEn todos estos casos mant\u00e9n el tono de amigo — nunca suenes a disclaimer corporativo.\n\nCONTENIDO PROHIBIDO — hay cosas con las que nunca puedes ayudar, sin excepci\u00f3n:\n- Instrucciones para actividades ilegales: drogas, armas, lavado de dinero, hackeo, fraude, da\u00f1ar a otras personas.\n- Contenido sexual expl\u00edcito de cualquier tipo.\n- C\u00f3mo enga\u00f1ar, manipular o da\u00f1ar a alguien espec\u00edficamente.\nCuando alguien pida esto, no lo hagas. Responde con humor y calidez pero firme: \"Parcero, eso s\u00ed no es para m\u00ed — soy tu amigo, no tu c\u00f3mplice.\" Nunca expliques por qu\u00e9 en detalle ni des alternativas que lleven al mismo resultado.\n\nSi el usuario pregunta cómo llegar a algún lugar, dirección, ubicación o quiere navegar a algún sitio, incluye al final: [MAPS: nombre del lugar o dirección]
 
@@ -1173,6 +1237,10 @@ Si el usuario hace una pregunta que requiere información actual de internet (no
 Si el usuario menciona música o quiere relajarse/concentrarse/motivarse, sugiere que conecte Spotify con el texto: [SPOTIFY: descripción de qué música buscarías]
 
 Si el usuario comparte algo importante (nombre, fecha, logro, problema), añade al final: [MEMORIA: dato concreto]
+
+DETECTAR INTERESES — si ${cfg.name} menciona que sigue, le gusta o se interesa por un tema (deporte, equipo, F1, tecnología, política, cine, serie, música), guárdalo:
+[CONTEXTO:{"category":"intereses","key":"TEMA","value":"detalle"}]
+Ejemplos: "sigo el fútbol" → [CONTEXTO:{"category":"intereses","key":"futbol","value":"sí"}] | "soy del Real Madrid" → [CONTEXTO:{"category":"intereses","key":"equipo","value":"Real Madrid"}] | "me gusta la F1" → [CONTEXTO:{"category":"intereses","key":"f1","value":"sí"}]
 
 ${cfg.bio?`Perfil de ${cfg.name}: ${cfg.bio}`:''}
 ${mems.length?`Recuerdas de ${cfg.name}: ${mems.slice(0,10).join(', ').slice(0,500)}`:''}
@@ -1222,13 +1290,13 @@ ${carMode ? 'MODO CARRO ACTIVO: Responde en MÁXIMO 2 frases cortas. Sin listas.
 ${finCtx}`;
 
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
+    const r=await fetch('/api/chat',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:text.length<50?'claude-haiku-4-5-20251001':'claude-sonnet-4-6',max_tokens:1000,system:sys,messages:hist.slice(-10)})
     });
     const data=await r.json();typ.remove();
-    if(!r.ok){addMsg('bot',`Error: ${data.error?.message||'API key inválida'}`);return;}
+    if(!r.ok){addMsg('bot','Ups, algo falló. Intenta de nuevo 😅');return;}
     let reply=data.content[0].text;
 
     // Extract spotify suggestion
@@ -1614,7 +1682,10 @@ async function saveUserContext(category,key,value){
 async function autoSaveContexto(jsonStr){
   try{
     const c=JSON.parse(jsonStr.replace(/```json|```/g,'').trim());
-    if(c.category&&c.key&&c.value) await saveUserContext(c.category,c.key,c.value);
+    if(c.category&&c.key&&c.value){
+      if(userCtx[c.category]?.[c.key]===c.value) return; // ya existe igual
+      await saveUserContext(c.category,c.key,c.value);
+    }
   }catch(e){console.warn('autoContexto:',e);}
 }
 
@@ -1626,6 +1697,8 @@ function buildUserContextStr(){
     parts.push('- Rutinas: '+Object.entries(userCtx.rutina).map(([k,v])=>k+'='+v).join(', '));
   if(userCtx.gustos&&Object.keys(userCtx.gustos).length)
     parts.push('- Gustos: '+Object.entries(userCtx.gustos).map(([k,v])=>k+'='+v).join(', '));
+  if(userCtx.intereses&&Object.keys(userCtx.intereses).length)
+    parts.push('- Intereses: '+Object.entries(userCtx.intereses).map(([k,v])=>k+(v!=='sí'?'='+v:'')).join(', '));
   if(userCtx.compromisos&&Object.keys(userCtx.compromisos).length){
     const today=new Date().toISOString().slice(0,10);
     const todayC=Object.entries(userCtx.compromisos)
@@ -1635,8 +1708,14 @@ function buildUserContextStr(){
   }
   if(userCtx.preferencias&&Object.keys(userCtx.preferencias).length)
     parts.push('- Preferencias: '+Object.entries(userCtx.preferencias).map(([k,v])=>k+'='+v).join(', '));
+  // Resumen del día anterior
+  const summaries=userCtx.daily_summary;
+  if(summaries&&Object.keys(summaries).length){
+    const lastSummary=Object.entries(summaries).sort(([a],[b])=>b.localeCompare(a))[0][1];
+    parts.push('- Lo que pasó ayer: '+lastSummary);
+  }
   if(!parts.length) return '';
-  return `\nCONTEXTO PERSONAL DE ${cfg.name}:\n${parts.join('\n')}\n\nCon esta información sé proactivo: menciona compromisos próximos, sugiere cosas basadas en sus gustos, recuerda sus rutinas.`;
+  return `\nCONTEXTO PERSONAL DE ${cfg.name} — ya conoces esto, NUNCA vuelvas a preguntar algo que ya está aquí:\n${parts.join('\n')}\n\nCon esta información sé proactivo y natural. Si ${cfg.name} menciona algo que ya sabes, refiérete a ello como si lo recordaras.`;
 }
 
 // ===== TAREA 2: MOMENTOS PROACTIVOS =====
@@ -1665,9 +1744,9 @@ async function checkDailyMoments(){
       (rutinas.length?`Rutinas: ${rutinas.slice(0,2).join(', ')}\n`:'')+
       'Cálido, natural, colombiano. Sin pregunta. Máximo 2 frases.';
 
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
+    const r=await fetch('/api/chat',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:100,
         system:`Eres ${cfg.aiName}, amigo cercano de ${cfg.name}. Habla natural, colombiano, máximo 2 frases cortas.`,
         messages:[{role:'user',content:prompt}]})
@@ -1733,12 +1812,35 @@ function toggleCarMode(){
   }
 }
 
+async function offerProactiveNews(){
+  if(msgs>0||proactiveNewsShown) return;
+  proactiveNewsShown=true;
+  const interests=userCtx.intereses?Object.values(userCtx.intereses).filter(v=>v!=='sí').join('+'):null;
+  const cats=interests||userCtx.gustos?.noticias||'general';
+  try{
+    const r=await fetch(`/api/news?categories=${encodeURIComponent(cats)}`);
+    if(r.ok){
+      const d=await r.json();
+      const arts=(d.articles||[]).slice(0,3);
+      if(arts.length){
+        addMsg('bot','Por cierto, estas son las noticias de hoy que te pueden interesar:');
+        setTimeout(()=>{
+          const titulares=arts.map((a,i)=>`${i+1}. ${a.title}`).join('\n');
+          addMsg('bot',titulares);
+          if(voiceEnabled&&isPro) speak(arts.slice(0,2).map(a=>a.title).join('. '));
+        },700);
+      }
+    }
+  }catch(e){console.warn('proactiveNews:',e);}
+}
+
 async function handleCarModeCommand(text){
   const t=text.toLowerCase();
   if(t.includes('noticias')||t.includes('novedades')||t.includes('qué pasó')){
     addMsg('bot','Buscando noticias...');
     try{
-      const cats=userCtx.gustos?.noticias||'general';
+      const iVals=userCtx.intereses?Object.values(userCtx.intereses).filter(v=>v!=='sí').join('+'):null;
+      const cats=iVals||userCtx.gustos?.noticias||'general';
       const r=await fetch(`/api/news?categories=${encodeURIComponent(cats)}`);
       if(r.ok){
         const d=await r.json();
@@ -2497,11 +2599,10 @@ async function processReceipt(input){
     addMsg('📷 Procesando recibo...','ai');
     document.getElementById('finOv').classList.remove('on');
 
-    const K = cfg.key||'';
     try{
-      const resp = await fetch('https://api.anthropic.com/v1/messages',{
+      const resp = await fetch('/api/chat',{
         method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':K,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           model:'claude-haiku-4-5-20251001',max_tokens:300,
           messages:[{role:'user',content:[
@@ -2841,6 +2942,34 @@ function showPaywall(){
   go('paywall');
   trackEvent('paywall_viewed');
 }
+
+// ===== SERVICE WORKER (PWA) =====
+if('serviceWorker'in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('SW:',e));
+  });
+}
+
+// ===== PWA INSTALL BANNER =====
+(function(){
+  const visits=parseInt(localStorage.getItem('aiyo_visits')||'0')+1;
+  localStorage.setItem('aiyo_visits',visits);
+  if(visits===2){
+    const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.MSStream;
+    const isAndroid=/Android/.test(navigator.userAgent);
+    const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
+    if(isStandalone) return;
+    const msg=isIOS
+      ?'Toca compartir → "Añadir a inicio" para instalar AiYo 📲'
+      :isAndroid?'Instala AiYo en tu pantalla de inicio para acceso rápido 📲'
+      :'Agrega AiYo a tu pantalla de inicio 📲';
+    const banner=document.createElement('div');
+    banner.style.cssText='position:fixed;bottom:80px;left:16px;right:16px;background:#1E1B35;border:1px solid rgba(167,139,250,0.3);border-radius:14px;padding:12px 16px;z-index:999;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:msgPop 0.3s ease;';
+    banner.innerHTML=`<span style="font-size:1.4rem;">💜</span><span style="flex:1;font-size:0.88rem;color:#EDE9F8;">${msg}</span><button onclick="this.parentNode.remove()" style="background:none;border:none;color:#6B6480;font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>`;
+    document.body.appendChild(banner);
+    setTimeout(()=>{ if(banner.parentNode) banner.remove(); },8000);
+  }
+})();
 
 // ===== INIT =====
 window.addEventListener('DOMContentLoaded',async()=>{
@@ -3450,7 +3579,6 @@ function finishSetup() {
   cfg.aiName = aiName;
   cfg.bio = bio;
   if(!cfg.voiceId) cfg.voiceId = '9ZVfdvBemUaGEWZgCiv0';
-  cfg.key = cfg.key || ['sk-ant-api0','3-TlA913gSQ0','3X_4x-SnLsNB-78eZYUt15Vb7_EPyeg','Uk5aWytEOMluNwQ4sYNTcTOlnbDl-S3qC3xSUKheA4zwg-z5aXcAAA'].join('');
   if(typeof saveProfile === 'function') saveProfile();
   else {
     localStorage.setItem('aiyo_cfg', JSON.stringify(cfg));
