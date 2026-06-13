@@ -509,6 +509,8 @@ body::before{
 .fb-row{display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:2px;min-height:22px}
 .fb-btn{background:none;border:none;cursor:pointer;font-size:0.82rem;color:#4a4470;padding:2px 5px;border-radius:6px;transition:all 0.15s;line-height:1}
 .fb-btn:hover{color:#A78BFA;background:rgba(167,139,250,0.12)}
+@keyframes hfPulse{0%,100%{box-shadow:0 0 0 0 rgba(167,139,250,0.5)}50%{box-shadow:0 0 0 6px rgba(167,139,250,0)}}
+.hbtn.hf-active{background:rgba(123,94,255,0.25)!important;border:1px solid rgba(167,139,250,0.5)!important;animation:hfPulse 1.6s ease-in-out infinite}
 
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -644,6 +646,7 @@ body::before{
       <input class="sinput" id="sAiName" placeholder="O escribe uno..." autocomplete="off"
         style="font-size:1.1rem;text-align:center;display:none;"
         onkeydown="if(event.key==='Enter') nextStep(3)">
+      <div style="font-size:0.76rem;color:#4a4470;text-align:center;margin-top:12px;">🎤 Este nombre será tu palabra de activación en modo manos libres</div>
       <button class="sbtn" style="margin-top:16px;width:100%;display:none;" id="step2btn" onclick="nextStep(3)">Seguir →</button>
     </div>
 
@@ -738,6 +741,7 @@ body::before{
       <div class="hdr-status" id="hdrStatus"><span class="pulse"></span>Contigo siempre</div>
     </div>
     <div class="hdr-btns">
+      <div class="hbtn" id="handsFreeBtn" onclick="toggleHandsFree()" title="Manos libres" style="font-size:15px;">🎤</div>
       <div class="hbtn" id="carModeBtn" onclick="toggleCarMode()" title="Modo carro">🚗</div>
       <div class="hbtn" id="voiceToggle" onclick="toggleVoice()" title="Voz">🔊</div>
       <div class="hbtn" onclick="openFinance()" title="Finanzas">💰</div>
@@ -748,6 +752,7 @@ body::before{
     <div id="hdrMenu" style="display:none;position:absolute;top:56px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px;z-index:100;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
       <div class="hmenu-item" onclick="openMood();toggleHdrMenu()">💭 Estado de ánimo</div>
       <div class="hmenu-item" onclick="openMemory();toggleHdrMenu()">🧠 Mis recuerdos</div>
+      <div class="hmenu-item" onclick="toggleHandsFree();toggleHdrMenu()" id="handsFreeMenuItem">🎤 Manos libres</div>
       <div class="hmenu-item" onclick="openVoicePicker();toggleHdrMenu()">🎙️ Cambiar voz</div>
       <div class="hmenu-item" onclick="openFeedback();toggleHdrMenu()">💬 Dar feedback</div>
       <div class="hmenu-item" onclick="showReferralShare();toggleHdrMenu()" style="color:#A78BFA;">🎁 Invita — código: <span id="menuRefCode" style="font-weight:700;font-family:monospace;letter-spacing:1px">—</span></div>
@@ -809,7 +814,8 @@ let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'nova'},
     msgs=0,rec=null,lstn=false,authTab='login',
     carMode=false,userCtx={},activeTimers=[],
     userLocation=null,userCity=null,locationDenied=false,
-    proactiveNewsTimer=null,proactiveNewsShown=false,sessionWelcomeShown=false;
+    proactiveNewsTimer=null,proactiveNewsShown=false,sessionWelcomeShown=false,
+    handsFreeOn=false,handsRec=null,handsFreePaused=false;
 
 // ===== ERROR LOGGING =====
 function logError(msg,stack,url){
@@ -997,6 +1003,10 @@ function launch(isNew=false){
     addMsg('bot',greeting);
     sessionWelcomeShown=true;
     proactiveNewsTimer=setTimeout(()=>offerProactiveNews(),30000);
+  }
+  // Restore hands-free preference hint (can't auto-start — needs user gesture)
+  if(isPro&&localStorage.getItem('aiyo_handsfree')==='1'){
+    setTimeout(()=>addMsg('bot',`🎤 El modo manos libres estaba activo. Toca el botón 🎤 para reactivarlo.`),2500);
   }
   // Check moment of day (proactivo — compromisos/reencuentro)
   setTimeout(()=>checkDailyMoments(),1500);
@@ -1476,6 +1486,109 @@ function toggleMic(){
 }
 function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB').classList.remove('on');}
 
+// ===== MANOS LIBRES (HANDS-FREE / WAKE WORD) =====
+function detectWakeWord(transcript,wakeName){
+  const norm=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9\s]/g,'').trim();
+  const tNorm=norm(transcript);
+  const wNorm=norm(wakeName);
+  if(!wNorm||!tNorm.includes(wNorm)) return null;
+  const idx=tNorm.indexOf(wNorm);
+  const rest=transcript.slice(idx+wakeName.length).replace(/^[\s,!?¡¿]+/,'').trim();
+  return rest; // empty string = just the wake word, null = not found
+}
+
+function startHandsFreeListen(){
+  if(!handsFreeOn||isSpeaking) return;
+  if(handsRec){try{handsRec.stop();}catch(_){}handsRec=null;}
+  if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  handsRec=new SR();
+  handsRec.lang='es-ES';
+  handsRec.continuous=true;
+  handsRec.interimResults=false;
+  handsRec.maxAlternatives=3;
+  handsRec.onresult=e=>{
+    if(isSpeaking||!handsFreeOn) return;
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(!e.results[i].isFinal) continue;
+      // Check all alternatives for wake word
+      let command=null;
+      for(let a=0;a<e.results[i].length;a++){
+        const candidate=detectWakeWord(e.results[i][a].transcript,cfg.aiName);
+        if(candidate!==null){command=candidate;break;}
+      }
+      if(command===null) continue; // wake word not found
+      // Wake word detected
+      if(command.length>2){
+        document.getElementById('ti').value=command;
+        send();
+      } else {
+        // Just the name — acknowledge and wait for input via manual mic
+        const ack=`Dime, ${cfg.name} 👂`;
+        addMsg('bot',ack);
+        speak(ack);
+      }
+      return;
+    }
+  };
+  handsRec.onerror=e=>{
+    if(e.error==='no-speech'||e.error==='audio-capture'||e.error==='aborted') return;
+    console.warn('handsRec error:',e.error);
+    if(e.error==='not-allowed'){
+      addMsg('bot','No tengo permiso para usar el micrófono. Revisa los permisos del navegador.');
+      stopHandsFree();
+    }
+  };
+  handsRec.onend=()=>{
+    handsFreePaused=false;
+    if(handsFreeOn&&!isSpeaking){
+      setTimeout(()=>{if(handsFreeOn&&!isSpeaking) startHandsFreeListen();},700);
+    }
+  };
+  try{handsRec.start();}catch(e){console.warn('handsRec start:',e);}
+}
+
+function stopHandsFree(){
+  handsFreeOn=false;
+  handsFreePaused=false;
+  if(handsRec){try{handsRec.stop();}catch(_){}handsRec=null;}
+  const btn=document.getElementById('handsFreeBtn');
+  if(btn) btn.classList.remove('hf-active');
+  const mi=document.getElementById('handsFreeMenuItem');
+  if(mi) mi.style.color='';
+}
+
+function toggleHandsFree(){
+  if(!isPro){showVoiceProModal();return;}
+  if(handsFreeOn){
+    stopHandsFree();
+    document.getElementById('hdrStatus').innerHTML='<span class="pulse"></span>Contigo siempre';
+    addMsg('bot','Modo manos libres desactivado. 👋');
+    localStorage.removeItem('aiyo_handsfree');
+    trackEvent('handsfree_off');
+  } else {
+    if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){
+      addMsg('bot','Tu navegador no soporta reconocimiento de voz. Prueba Chrome en Android.');
+      return;
+    }
+    handsFreeOn=true;
+    voiceEnabled=true;
+    const vb=document.getElementById('voiceToggle');
+    if(vb) vb.textContent='🔊';
+    const btn=document.getElementById('handsFreeBtn');
+    if(btn) btn.classList.add('hf-active');
+    const mi=document.getElementById('handsFreeMenuItem');
+    if(mi) mi.style.color='#A78BFA';
+    document.getElementById('hdrStatus').innerHTML=`<span class="pulse" style="background:#A78BFA"></span><span style="color:#A78BFA">Escuchando · ${cfg.aiName}</span>`;
+    const notice=`Modo manos libres activo 🎤 Te escucho cuando digas "${cfg.aiName}". Esto usa más batería 🔋`;
+    addMsg('bot',notice);
+    speak(`Manos libres activo. Dime ${cfg.aiName} cuando me necesites.`);
+    startHandsFreeListen();
+    localStorage.setItem('aiyo_handsfree','1');
+    trackEvent('handsfree_on');
+  }
+}
+
 
 // ===== ELEVENLABS VOICE =====
 let audioQueue=[], isSpeaking=false, speakEndTime=0;
@@ -1486,6 +1599,7 @@ async function speak(text){
   if(!voiceEnabled) return;
   if(!isPro){ showVoiceProModal(); return; }
   if(lstn) stopMic();
+  if(handsFreeOn&&handsRec){try{handsRec.stop();}catch(_){}handsFreePaused=true;}
   const VOICE_ID=cfg.voiceId||'9ZVfdvBemUaGEWZgCiv0';
   let clean=text
     .replace(/\*\*/g,'').replace(/\*/g,'')
@@ -1525,7 +1639,7 @@ async function speak(text){
       audio.onended=()=>{
         URL.revokeObjectURL(url);
         isSpeaking=false; speakEndTime=Date.now();
-        if(voiceEnabled) setTimeout(()=>{ if(!isSpeaking) toggleMic(); },1800);  // esperar eco
+        if(handsFreeOn) setTimeout(()=>{ if(handsFreeOn&&!isSpeaking) startHandsFreeListen(); },2200); else if(voiceEnabled) setTimeout(()=>{ if(!isSpeaking) toggleMic(); },1800);
       };
       isSpeaking=true;
       trackEvent('voice_used',{type:'tts'});
