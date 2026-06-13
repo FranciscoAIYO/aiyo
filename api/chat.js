@@ -1,3 +1,22 @@
+const SB_URL = process.env.SB_URL || 'https://qvhcousyqtjebiekdiuf.supabase.co';
+const SB_SERVICE_KEY = process.env.SB_SERVICE_KEY;
+
+async function logServerError(msg, stack, url) {
+  if (!SB_SERVICE_KEY) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/error_log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_SERVICE_KEY,
+        'Authorization': `Bearer ${SB_SERVICE_KEY}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ error_message: String(msg).slice(0, 500), stack: String(stack || '').slice(0, 1000), url: url || '/api/chat', user_agent: 'server' }),
+    });
+  } catch (_) {}
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -33,6 +52,7 @@ export default async function handler(req, res) {
     return res.status(r.status).json(data);
   } catch (e) {
     console.error('chat proxy error:', e);
+    await logServerError(e.message, e.stack, '/api/chat');
     return res.status(500).json({ error: e.message });
   }
 }

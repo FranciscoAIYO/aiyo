@@ -7,12 +7,18 @@
     { "source": "/api/facebook-post", "destination": "/api/facebook-post.js" },
     { "source": "/api/welcome-email", "destination": "/api/welcome-email.js" },
     { "source": "/api/admin-stats", "destination": "/api/admin-stats.js" },
+    { "source": "/api/health", "destination": "/api/health.js" },
+    { "source": "/api/weekly-report", "destination": "/api/weekly-report.js" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
     {
       "path": "/api/facebook-post",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/weekly-report",
+      "schedule": "0 12 * * 1"
     }
   ],
   "headers": [

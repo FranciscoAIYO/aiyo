@@ -1,3 +1,22 @@
+const SB_URL = process.env.SB_URL || 'https://qvhcousyqtjebiekdiuf.supabase.co';
+const SB_SERVICE_KEY = process.env.SB_SERVICE_KEY;
+
+async function logServerError(msg, stack) {
+  if (!SB_SERVICE_KEY) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/error_log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_SERVICE_KEY,
+        'Authorization': `Bearer ${SB_SERVICE_KEY}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ error_message: String(msg).slice(0, 500), stack: String(stack || '').slice(0, 1000), url: '/api/tts', user_agent: 'server' }),
+    });
+  } catch (_) {}
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -53,6 +72,7 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error('TTS proxy error:', e);
+    await logServerError(e.message, e.stack);
     res.status(500).json({ error: e.message });
   }
 }

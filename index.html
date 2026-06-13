@@ -506,6 +506,9 @@ body::before{
 .db-modal-x{position:absolute;top:12px;right:12px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.06);border:none;color:#A78BFA;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .db-modal-ttl{font-size:15px;font-weight:500;color:#EDE9F8;margin-bottom:3px}
 .db-modal-sub{font-size:11px;color:#6B6480;margin-bottom:16px}
+.fb-row{display:flex;align-items:center;gap:6px;margin-top:5px;padding-left:2px;min-height:22px}
+.fb-btn{background:none;border:none;cursor:pointer;font-size:0.82rem;color:#4a4470;padding:2px 5px;border-radius:6px;transition:all 0.15s;line-height:1}
+.fb-btn:hover{color:#A78BFA;background:rgba(167,139,250,0.12)}
 
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -808,6 +811,22 @@ let cfg={name:'',bio:'',key:'',aiName:'AiYo',voiceId:'nova'},
     userLocation=null,userCity=null,locationDenied=false,
     proactiveNewsTimer=null,proactiveNewsShown=false,sessionWelcomeShown=false;
 
+// ===== ERROR LOGGING =====
+function logError(msg,stack,url){
+  try{
+    const row={error_message:String(msg).slice(0,500),stack:String(stack||'').slice(0,1000),url:url||location.href.split('?')[0],user_agent:navigator.userAgent.slice(0,200)};
+    if(user) row.user_id=user.id;
+    sb.from('error_log').insert(row).then();
+  }catch(_){}
+}
+window.onerror=function(msg,src,line,col,err){
+  logError(msg,(err?.stack||src+':'+line+':'+col));
+  return false;
+};
+window.addEventListener('unhandledrejection',e=>{
+  logError(String(e.reason?.message||e.reason),(e.reason?.stack||''));
+});
+
 // ===== STARS =====
 (()=>{const s=document.getElementById('stars');for(let i=0;i<50;i++){const el=document.createElement('div');el.className='s';const sz=Math.random()*1.5+0.5;el.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${3+Math.random()*5}s;--b:${0.2+Math.random()*0.4};animation-delay:${Math.random()*5}s`;s.appendChild(el);}})();
 
@@ -941,6 +960,7 @@ async function checkDailySession(){
 // ===== LAUNCH =====
 function launch(isNew=false){
   go('app');
+  trackEvent('session_start',{is_new:isNew,is_pro:isPro});
   document.getElementById('hdrName').innerHTML=cfg.aiName+(isPro?'<span class="pro">⭐ PRO</span>':'');
   if(isPro)document.getElementById('proBadge').style.display='inline-flex';
   const refBtnArea=document.getElementById('referralBtnArea');if(refBtnArea&&referralCode){refBtnArea.style.display='block';document.getElementById('refBtnCode').textContent=referralCode;}
@@ -1067,15 +1087,42 @@ function addMsg(role,text){
       .replace(/\[(MAPS|UBER|RAPPI|COMPRAR|YOUTUBE|CLIMA|BUSCAR|SPOTIFY|FINANZAS|WHATSAPP):[^\]]*\]/g,'')
       .replace(/\s{2,}/g,' ').trim();
   }
-  d.innerHTML=role==='bot'
-    ?`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div class="bbl">${display.replace(/\n/g,'<br>')}</div>`
-    :`<div class="bbl">${display.replace(/\n/g,'<br>')}</div>`;
+  if(role==='bot'){
+    const fid='fb_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,5);
+    window['_fbt_'+fid]=text.slice(0,300);
+    d.innerHTML=`<div class="msg-av"><div class="av-eyes"><div class="av-eye"></div><div class="av-eye"></div></div></div><div style="flex:1"><div class="bbl">${display.replace(/\n/g,'<br>')}</div><div class="fb-row" id="${fid}"><button class="fb-btn" onclick="giveFeedback('${fid}',1)">👍</button><button class="fb-btn" onclick="giveFeedback('${fid}',-1)">👎</button></div></div>`;
+  } else {
+    d.innerHTML=`<div class="bbl">${display.replace(/\n/g,'<br>')}</div>`;
+  }
   area.appendChild(d);area.scrollTop=area.scrollHeight;
   if(user){
     const r=role==='bot'?'assistant':'user';
     sb.from('messages').insert({user_id:user.id,role:r,content:text}).then();
     hist.push({role:r,content:text});
   }
+}
+
+function giveFeedback(fid,rating){
+  const row=document.getElementById(fid);
+  if(!row) return;
+  if(rating===1){
+    row.innerHTML='<span style="font-size:0.72rem;color:#5DCAA5;padding-left:2px;">💜</span>';
+    if(user) sb.from('feedback').insert({user_id:user.id,message_text:window['_fbt_'+fid]||'',rating:1,comment:''}).then();
+    trackEvent('feedback_given',{rating:1});
+    delete window['_fbt_'+fid];
+    return;
+  }
+  row.innerHTML=`<div style="display:flex;gap:5px;align-items:center;margin-top:3px;"><input id="fbc_${fid}" placeholder="¿Qué pudo ser mejor?" maxlength="150" style="flex:1;background:#1a1a35;border:1px solid #3a3a6a;border-radius:8px;padding:5px 10px;color:#EDE9F8;font-size:0.78rem;outline:none;" onkeydown="if(event.key==='Enter')submitFeedbackComment('${fid}')"><button onclick="submitFeedbackComment('${fid}')" style="background:#7B5EFF;border:none;border-radius:8px;padding:5px 10px;color:#fff;font-size:0.78rem;cursor:pointer;white-space:nowrap;">Enviar</button><button onclick="document.getElementById('${fid}').innerHTML=''" style="background:none;border:none;color:#555;cursor:pointer;font-size:0.9rem;line-height:1;">✕</button></div>`;
+  setTimeout(()=>document.getElementById('fbc_'+fid)?.focus(),50);
+}
+async function submitFeedbackComment(fid){
+  const inp=document.getElementById('fbc_'+fid);
+  const comment=inp?inp.value.trim():'';
+  const row=document.getElementById(fid);
+  if(row) row.innerHTML='<span style="font-size:0.72rem;color:#9B8FC0;padding-left:2px;">Gracias 🙏</span>';
+  if(user) await sb.from('feedback').insert({user_id:user.id,message_text:window['_fbt_'+fid]||'',rating:-1,comment});
+  trackEvent('feedback_given',{rating:-1});
+  delete window['_fbt_'+fid];
 }
 
 function addTyping(msgLen=50){
@@ -1147,6 +1194,7 @@ async function send(){
   const text=inp.value.trim();if(!text)return;
   msgs++;inp.value='';inp.style.height='';
   if(msgs===1) trackEvent('first_message');
+  trackEvent('message_sent',{len:text.length});
   if(proactiveNewsTimer){clearTimeout(proactiveNewsTimer);proactiveNewsTimer=null;}
   addMsg('user',text);
   // Detección de intención externa — antes de llamar a Claude
@@ -1338,14 +1386,14 @@ ${finCtx}`;
       if(contextoMatch){ autoSaveContexto(contextoMatch[1]); }
       if(timerMatch){ autoStartTimer(timerMatch[1]); }
       if(reservaMatch){ addReservaCard(reservaMatch[1]); }
-      if(mapsMatch) addMapsPrompt(mapsMatch[1]);
-      if(uberMatch) addUberPrompt(uberMatch[1]);
-      if(rappiMatch) addRappiPrompt(rappiMatch[1]);
-      if(buyMatch) addBuyPrompt(buyMatch[1]);
-      if(ytMatch) addYTPrompt(ytMatch[1]);
-      if(climaMatch) addClimaPrompt(climaMatch[1]);
-      if(buscarMatch) addBuscarPrompt(buscarMatch[1]);
-      if(waMatch) handleWAAction(waMatch[1]);
+      if(mapsMatch){addMapsPrompt(mapsMatch[1]);trackEvent('external_app_opened',{app:'maps'});}
+      if(uberMatch){addUberPrompt(uberMatch[1]);trackEvent('external_app_opened',{app:'uber'});}
+      if(rappiMatch){addRappiPrompt(rappiMatch[1]);trackEvent('external_app_opened',{app:'rappi'});}
+      if(buyMatch){addBuyPrompt(buyMatch[1]);trackEvent('external_app_opened',{app:'comprar'});}
+      if(ytMatch){addYTPrompt(ytMatch[1]);trackEvent('external_app_opened',{app:'youtube'});}
+      if(climaMatch){addClimaPrompt(climaMatch[1]);trackEvent('external_app_opened',{app:'clima'});}
+      if(buscarMatch){addBuscarPrompt(buscarMatch[1]);trackEvent('external_app_opened',{app:'buscar'});}
+      if(waMatch){handleWAAction(waMatch[1]);trackEvent('external_app_opened',{app:'whatsapp'});}
       if(finanzasMatch) setTimeout(()=>openFinance(),600);
     }
   }catch(e){typ.remove();addMsg('bot','Sin conexión. Intenta de nuevo.');}
@@ -1418,6 +1466,7 @@ function toggleMic(){
   rec.onerror=()=>stopMic();
   rec.onend=()=>stopMic();
   rec.start();lstn=true;document.getElementById('micB').classList.add('on');
+  trackEvent('voice_used',{type:'mic'});
 }
 function stopMic(){lstn=false;rec?.stop();rec=null;document.getElementById('micB').classList.remove('on');}
 
@@ -1473,6 +1522,7 @@ async function speak(text){
         if(voiceEnabled) setTimeout(()=>{ if(!isSpeaking) toggleMic(); },1800);  // esperar eco
       };
       isSpeaking=true;
+      trackEvent('voice_used',{type:'tts'});
       await audio.play();
       return;
     }
@@ -1773,7 +1823,7 @@ async function checkDailyMoments(){
 function autoStartTimer(jsonStr){
   try{
     const t=JSON.parse(jsonStr.replace(/```json|```/g,'').trim());
-    if(t.minutos>0) startVoiceTimer(t.minutos,t.mensaje||'');
+    if(t.minutos>0){ startVoiceTimer(t.minutos,t.mensaje||''); trackEvent('timer_set',{minutes:t.minutos}); }
   }catch(e){console.warn('autoTimer:',e);}
 }
 
@@ -1799,6 +1849,7 @@ function toggleCarMode(){
     btn.title=carMode?'Modo carro activo — toca para desactivar':'Modo carro';
   }
   if(carMode){
+    trackEvent('driving_mode_on');
     voiceEnabled=true;
     const vb=document.getElementById('voiceToggle');
     if(vb) vb.textContent='🔊';
@@ -2778,6 +2829,7 @@ async function autoRegistrarGasto(jsonStr){
       date: new Date().toISOString().slice(0,10)
     });
     if(error){ console.error('autoGasto error:',error); return; }
+    trackEvent('finance_expense_logged',{amount:g.monto,category:g.categoria||'otro'});
     // Notificación sutil en el chat
     setTimeout(()=>{
       const notif = document.createElement('div');
@@ -2884,7 +2936,10 @@ function getReferralFromURL(){
 async function trackEvent(event,meta={}){
   if(!user) return;
   try{
-    await sb.from('analytics').insert({user_id:user.id,event,metadata:meta});
+    await Promise.all([
+      sb.from('analytics').insert({user_id:user.id,event,metadata:meta}),
+      sb.from('usage_events').insert({user_id:user.id,event_type:event,metadata:meta}),
+    ]);
   }catch(e){}
 }
 
@@ -3579,6 +3634,7 @@ function finishSetup() {
   cfg.aiName = aiName;
   cfg.bio = bio;
   if(!cfg.voiceId) cfg.voiceId = '9ZVfdvBemUaGEWZgCiv0';
+  trackEvent('onboarding_completed',{has_bio:!!bio});
   if(typeof saveProfile === 'function') saveProfile();
   else {
     localStorage.setItem('aiyo_cfg', JSON.stringify(cfg));
